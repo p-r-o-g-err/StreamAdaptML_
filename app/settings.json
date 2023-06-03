@@ -1,0 +1,5 @@
+{
+    "data_shift_detection_method": "ADWIN",
+    "training_method": "mini_batch_online_learning",
+    "training_method_with_data_shift": "autofit"
+}

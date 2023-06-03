@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="page-title">
+	    <h3>Обучение</h3>
+	</div>
+	<div class="flex-container">
+		<button id="start-learning" type="button" class="btn waves-effect waves-light margin-right">
+				Запустить
+				<i class="material-icons right">play_arrow</i>
+		</button>
+		<button id="stop-learning" type="button" class="btn waves-effect waves-light margin-right"  style="display: none;">
+				Остановить
+				<i class="material-icons right">stop</i>
+		</button>
+<!--		<form class="form" action="{{url_for('start_learning')}}" method="post" enctype="multipart/form-data">-->
+<!--			<button id="start-learning" type="submit" class="btn waves-effect waves-light">-->
+<!--				Запустить-->
+<!--				<i class="material-icons right">play_arrow</i>-->
+<!--			</button>-->
+<!--		</form>-->
+<!--		<form class="form" action="{{url_for('stop_learning')}}" method="post" enctype="multipart/form-data">-->
+<!--			<button id="stop-learning" type="submit" class="btn waves-effect waves-light">-->
+<!--				Остановить-->
+<!--				<i class="material-icons right">stop</i>-->
+<!--			</button>-->
+<!--		</form>-->
+	</div>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script>
+
+		$(document).ready(function() {
+			$('#start-learning').click(function() {
+				// Проверить загружена ли модель
+				$.get('/check_model', function(data) {
+					// Если модель загружена, то запустить обучение
+					if (data == "Модель загружена") {
+						$.post('/start_learning', function(data) {
+							if (data == 'Фоновая работа запущена') {
+								M.toast({html: "Фоновая работа запущена"});
+								managementWork();
+								$('#start-learning').hide(); // Скрываем кнопку "Запустить"
+								$('#stop-learning').show(); // Показываем кнопку "Остановить"
+							}
+							else{
+								M.toast({html: "Фоновая работа уже запущена"});
+							}
+							console.log(data); // Вывод результата запроса в консоль
+						});
+					}
+					else {
+						M.toast({html: "Для запуска обучения необходимо загрузить модель"});
+					}
+					$('#start-learning').blur();
+				});
+			});
+		});
+		$(document).ready(function() {
+			$('#stop-learning').click(function() {
+				$.post('/stop_learning', function(data) {
+					if (data == 'Фоновая работа остановлена') {
+						M.toast({html: "Фоновая работа остановлена"});
+						$('#stop-learning').hide(); // Скрываем кнопку "Остановить"
+            			$('#start-learning').show(); // Показываем кнопку "Запустить"
+            			managementWork();
+					} else {
+					    M.toast({html: "Фоновая работа уже остановлена"});
+					}
+					console.log(data); // Вывод результата запроса в консоль
+					$('#stop-learning').blur();
+				});
+				// $(this).blur(); // Убираем фокус с кнопки
+			});
+		});
+	</script>
+
+	<div id="training-display-container" class="flow-text">
+	    <h5>Производительность модели</h5>
+
+		<div class="parameter-container">
+			<span class="parameter-name">Прошло времени (hh:mm:ss):</span>
+			<span id="time-value" class="parameter-value">00:00:00</span>
+		</div>
+		<div class="parameter-container">
+			<span class="parameter-name">Значение функции потерь (MSE):</span>
+			<span id="loss-value" class="parameter-value">0.000</span>
+		</div>
+		<div class="parameter-container">
+			<span class="parameter-name">Точность (R²):</span>
+			<span id="accuracy-value" class="parameter-value">0,000%</span>
+		</div>
+		<div class="parameter-container">
+			<span class="parameter-name">Изменение точности за время обучения:</span>
+			<span id="change-value" class="parameter-value">+0,000%</span>
+		</div>
+	</div>
+
+
+	<script async src="../static/js/displayStreamingData.js"></script>
+	<script>
+		// При загрузке страницы вызываем функцию восстановления состояния
+		document.addEventListener('DOMContentLoaded', function() {
+			$.get('/check_status', function(data) {
+				if (data === 'Фоновая работа запущена') {
+					$('#start-learning').hide(); // Скрываем кнопку "Запустить"
+					$('#stop-learning').show(); // Показываем кнопку "Остановить"
+				} else {
+					$('#start-learning').show(); // Показываем кнопку "Запустить"
+					$('#stop-learning').hide(); // Скрываем кнопку "Остановить"
+				}
+        	});
+		});
+	</script>
+
+
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+	<div class="divider"></div>
+	<div id="forecast-display-container" class="flow-text">
+	    <h5>Прогнозы модели</h5>
+
+	</div>
+	<div class="divider"></div>
+	<div id="streaming-data-display-container" class="flow-text">
+	    <h5>Потоковые данные</h5>
+		<div style="width: 800px;"><canvas id="streaming-data"></canvas></div>
+		<div class="parameter-container">
+			<span class="parameter-name">Количество обнаруженных сдвигов:</span>
+			<span id="number-drift-points" class="parameter-value">0</span>
+		</div>
+	</div>
+
+{% endblock %}
+
+<!-- Код элемента TabControl -->
+<!--	<div class="container tab-container">-->
+<!--		<div class="row">-->
+<!--			<div class="col s12">-->
+<!--				<ul class="tabs">-->
+<!--					<li class="tab col s3"><a href="#test1">Производительность модели</a></li>-->
+<!--					<li class="tab col s3"><a href="#test2">Прогнозы модели</a></li>-->
+<!--					<li class="tab col s3"><a href="#test3">Потоковые данные</a></li>-->
+<!--				</ul>-->
+<!--			</div>-->
+<!--			<div id="test1" class="col s12">Test 1</div>-->
+<!--			<div id="test2" class="col s12">Test 2</div>-->
+<!--			<div id="test3" class="col s12">Test 3</div>-->
+<!--		</div>-->
+<!--	</div>-->
+<!--	<script>-->
+<!--		document.addEventListener('DOMContentLoaded', function() {-->
+<!--			var tabs = document.querySelectorAll('.tabs');-->
+<!--			var instance = M.Tabs.init(tabs);-->
+<!--		});-->
+<!--	</script>-->

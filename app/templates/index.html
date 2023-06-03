@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="page-title">
+	    <h3>Настройки</h3>
+	</div>
+    <section>
+        <div>
+            <p class="flow-text"><span id="model-status" class="model-status">{{model_status}}</span></p>
+        </div>
+    </section>
+
+<!--	<form class="form form-vertical" action="{{url_for('download_model')}}" method="post" enctype="multipart/form-data">-->
+<!--		<input type="file" name="file" id="load-model-btn" style="display: none;" accept=".keras">-->
+<!--		<label for="load-model-btn" id="file-label" class="btn waves-effect waves-light">-->
+<!--			Загрузить модель формата .keras-->
+<!--			<i class="material-icons right">download</i>-->
+<!--		</label>-->
+<!--	</form>-->
+	<form class="form form-vertical" name="load_form" id="load_form" action="{{url_for('download_model')}}" method="post" enctype="multipart/form-data">
+		<input type="file" name="file" id="load-model-btn" style="display: none;" accept=".keras">
+		<label for="load-model-btn" id="file-label" class="btn waves-effect waves-light">
+			Загрузить модель формата .keras
+			<i class="material-icons right">download</i>
+		</label>
+	</form>
+
+	{% if model_exists %}
+	<div class="button-horizontal-container">
+		<form class="form" action="{{url_for('upload_model')}}" method="post" enctype="multipart/form-data">
+			<button id="save-model-btn" type="submit" name="submit" class="btn waves-effect waves-light left-button-horizontal-container">
+				Скачать модель
+				<i class="material-icons right">upload</i>
+			</button>
+		</form>
+		<div class="form">
+			<button id="delete-model-btn" type="button" class="btn waves-effect waves-light right-button-horizontal-container">
+				Удалить модель
+				<i class="material-icons right">delete</i>
+			</button>
+		</div>
+	</div>
+	{% endif %}
+
+
+	<br>
+    <form class="form" id="form-settings" action="{{url_for('save_settings')}}" method="post" enctype="multipart/form-data">
+		<div class="setting-container" id="data-shift-detection-container">
+			<label class="flow-text setting-title ">Метод обнаружения сдвига данных</label>
+			<select class="browser-default" name="data-shift-detection-select" id="data-shift-detection-select">
+				<option value="ADWIN" {% if data_shift_detection_method == 'ADWIN' %}selected{% endif %}>
+					ADWIN - адаптивный оконный метод
+				</option>
+				<option value="DDM" {% if data_shift_detection_method == 'DDM' %}selected{% endif %}>
+					DDM - метод обнаружения сдвига
+				</option>
+				<option value="EDDM" {% if data_shift_detection_method == 'EDDM' %}selected{% endif %}>
+					EDDM - метод раннего обнаружения сдвига
+				</option>
+			</select>
+		</div>
+		<div class="setting-container" id="training-method-container">
+			<label class="setting-title">Метод обучения при отсутствии сдвига данных</label>
+			<select class="browser-default" name="training-method-select" id="training-method-select">
+				<option value="online_learning" {% if training_method == 'online_learning' %}selected{% endif %}>
+					Онлайн обучение
+				</option>
+				<option value="mini_batch_online_learning" {% if training_method == 'mini_batch_online_learning' %}selected{% endif %}>
+					Пакетное онлайн обучение
+				</option>
+				<option value="transfer_learning" {% if training_method == 'transfer_learning' %}selected{% endif %}>
+					Трансферное обучение
+				</option>
+			</select>
+		</div>
+		<div class="setting-container" id="training-method-with-data-shift-container">
+			<label class="setting-title">Метод обучения при обнаружении сдвига данных</label>
+			<select class="browser-default" name="training-method-with-data-shift-select" id="training-method-with-data-shift-select">
+				<option value="online_learning" {% if training_method_with_data_shift == 'online_learning' %}selected{% endif %}>
+					Онлайн обучение
+				</option>
+				<option value="mini_batch_online_learning" {% if training_method_with_data_shift == 'mini_batch_online_learning' %}selected{% endif %}>
+					Пакетное онлайн обучение
+				</option>
+				<option value="transfer_learning" {% if training_method_with_data_shift == 'transfer_learning' %}selected{% endif %}>
+					Трансферное обучение
+				</option>
+				<option value="learning_from_scratch" {% if training_method_with_data_shift == 'learning_from_scratch' %}selected{% endif %}>
+					Обучение с нуля
+				</option>
+				<option value="autofit" {% if training_method_with_data_shift == 'autofit' %}selected{% endif %}>
+					Автоподбор
+				</option>
+			</select>
+		</div>
+		<div class="button-horizontal-container">
+			<button type="submit" class="btn waves-effect waves-light left-button-horizontal-container" id="save-settings">
+				Сохранить настройки
+				<i class="material-icons right">save</i>
+			</button>
+			<button type="button" class="btn waves-effect waves-light right-button-horizontal-container" id="autosettings">
+				Сбросить настройки
+				<i class="material-icons right">settings_backup_restore</i>
+			</button>
+		</div>
+    </form>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script>
+		// Обработка кнопки удаления модели
+		$(document).ready(function() {
+			$('#delete-model-btn').click(function() {
+				// Проверить запущено ли обучение
+				$.get('/check_status', function(data) {
+					// Если обучение не запущено, то удалить модель
+					if (data != "Фоновая работа запущена") {
+						$.post('/delete_model', function(data) {
+							//M.toast({html: data});
+							console.log(data); // Вывод результата запроса в консоль
+							// $('#model-status').text('Модель не загружена');
+							// Перезагрузить страницу
+							location.reload();
+						});
+					}
+					else {
+						M.toast({html: "Для удаления модели необходимо остановить обучение"});
+					}
+					// Снять фокус с кнопки
+					$('#delete-model-btn').blur();
+				});
+			});
+		});
+		// Обработка кнопки сохранения модели
+		$(document).ready(function() {
+			$('#save-model-btn').click(function(e) {
+<!--					$.post('/upload_model', function(data) {-->
+<!--						console.log(data)-->
+<!--						if (data.hasOwnProperty('message')) {-->
+<!--							M.toast({html: data.message});-->
+<!--						} else {-->
+<!--							console.log('Скачать модель')-->
+<!--						}-->
+<!--					}).fail(function() {-->
+<!--						M.toast({html: 'Ошибка при выполнении запроса'});-->
+<!--					    // Перезагрузить страницу-->
+<!--						//e.preventDefault();-->
+<!--                    	location.reload();-->
+<!--					});-->
+				$('#save-model-btn').blur();
+			});
+		});
+	</script>
+
+
+	<script>
+		// Логика автонастройки
+		const autosettingsButton = document.getElementById("autosettings");
+		const dataShiftDetectionSelect = document.querySelector("#data-shift-detection-container select");
+		const trainingMethodSelect = document.querySelector("#training-method-container select");
+		const trainingMethodWithDataShiftSelect = document.querySelector("#training-method-with-data-shift-container select");
+
+  		autosettingsButton.addEventListener("click", function() {
+    		dataShiftDetectionSelect.selectedIndex = 0;
+			trainingMethodSelect.selectedIndex = 1;
+			trainingMethodWithDataShiftSelect.selectedIndex = 4;
+    	});
+
+
+<!--		document.forms.load_form.addEventListener('submit', function(event) {-->
+<!--			// Предотвратить отправку формы по умолчанию-->
+<!--			event.preventDefault();-->
+<!--		 	M.toast({html: "Я здесь"});-->
+<!--			// Проверить запущено ли обучение-->
+<!--			$.get('/check_status', function(data) {-->
+<!--				// Если обучение запущено, то вывести сообщение-->
+<!--				if (data == "Фоновая работа запущена") {-->
+<!--					console.log("Для загрузки модели необходимо остановить обучение");-->
+<!--					M.toast({html: "Для загрузки модели необходимо остановить обучение"});-->
+<!--				} else {-->
+<!--					// Отправить форму, если обучение не запущено-->
+<!--					M.toast({html: "фываыфа"});-->
+<!--					document.forms.load_form.submit();-->
+<!--				}-->
+<!--			});-->
+<!--		});-->
+
+
+    	// Обработка клика кнопки загрузки модели
+    	document.getElementById("load-model-btn").addEventListener("change", function() {
+    		// Проверить запущено ли обучение
+			$.get('/check_status', function(data) {
+				// Если обучение запущено, то не загружать модель
+				if (data == "Фоновая работа запущена") {
+					console.log("Для загрузки модели необходимо остановить обучение");
+					M.toast({html: "Для загрузки модели необходимо остановить обучение"});
+				}
+				// Иначе, проверить расширение и в случае успеха загрузить модель
+				else {
+					// Проверить расширение файла
+					const fileInput = document.getElementById("load-model-btn");
+					const fileName = fileInput.value.split("\\").pop(); // Получить выбранное имя файла
+					const fileExtension = fileName.split(".").pop(); // Получить расширение файла
+
+					if (fileExtension.toLowerCase() !== "keras") {
+						// Вывести Toast с ошибкой
+						M.toast({html: "Ошибка загрузки: выберите файл формата .keras"});
+						return;
+					}
+					// document.getElementsByClassName("form")[0].submit();
+
+					// Загрузить модель
+					document.forms.load_form.submit();
+				}
+			});
+		});
+
+	</script>
+{% endblock %}

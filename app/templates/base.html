@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport"
+            content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        {% block title %}
+            <title>{% if title %}{{ title }}{% else %}Заголовок{% endif %}</title>
+        {% endblock %}
+    </head>
+    <body>
+        <div>
+            <div class="app-main-layout">
+                <nav class="navbar orange lighten-1">
+                    <div class="nav-wrapper">
+                        <div class="navbar-left">
+                            <img src="./static/images/icon.png" alt="App Icon" class="app-icon">
+                            <span class="black-text app-title" id="app-name">StreamAdaptML — система дообучения моделей машинного обучения на изменяющихся потоковых данных</span>
+                        </div>
+                    </div>
+                </nav>
+
+                <ul class="sidenav app-sidenav open">
+                    <li><a href="/" class="waves-effect waves-orange pointer">Настройки</a></li>
+                    <li><a href="{{ url_for('learning') }}" class="waves-effect waves-orange pointer">Обучение</a></li>
+                </ul>
+                <main class="app-content">
+                    <div class="app-page">
+                        <div>
+                            {% block content %}{% endblock %}
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    </body>
+</html>
