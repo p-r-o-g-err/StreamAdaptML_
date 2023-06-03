@@ -417,7 +417,6 @@ def debug_drift_detection():
     drift_results.append(drift_index_adwin_a)
     if len(drift_index_adwin_a) > 0:
         print()
-    s = 3
 
     # Визуализация работы метода
     # drift_values_adwin_a = data_stream[drift_index_adwin_a]

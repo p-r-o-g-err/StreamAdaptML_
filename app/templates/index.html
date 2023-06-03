@@ -10,13 +10,6 @@
         </div>
     </section>
 
-<!--	<form class="form form-vertical" action="{{url_for('download_model')}}" method="post" enctype="multipart/form-data">-->
-<!--		<input type="file" name="file" id="load-model-btn" style="display: none;" accept=".keras">-->
-<!--		<label for="load-model-btn" id="file-label" class="btn waves-effect waves-light">-->
-<!--			Загрузить модель формата .keras-->
-<!--			<i class="material-icons right">download</i>-->
-<!--		</label>-->
-<!--	</form>-->
 	<form class="form form-vertical" name="load_form" id="load_form" action="{{url_for('download_model')}}" method="post" enctype="multipart/form-data">
 		<input type="file" name="file" id="load-model-btn" style="display: none;" accept=".keras">
 		<label for="load-model-btn" id="file-label" class="btn waves-effect waves-light">
@@ -130,6 +123,7 @@
 				});
 			});
 		});
+
 		// Обработка кнопки сохранения модели
 		$(document).ready(function() {
 			$('#save-model-btn').click(function(e) {
@@ -213,6 +207,6 @@
 				}
 			});
 		});
-
+		// #save-settings
 	</script>
 {% endblock %}
