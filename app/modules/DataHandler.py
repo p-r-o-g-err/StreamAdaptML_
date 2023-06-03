@@ -427,7 +427,7 @@ def debug_drift_detection():
 
 
 if __name__ == "__main__":
-    drift.binary.ddm.test_ddm()
+    #drift.binary.ddm.test_ddm()
     # Обновление данных
     #update_dataset()
     #dataset_for_model = read_dataset()

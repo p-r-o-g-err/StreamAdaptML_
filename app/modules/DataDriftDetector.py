@@ -3,8 +3,19 @@
     Включает функции по обнаружению сдвига в данных
 """
 import matplotlib.pyplot as plt
+from river import drift
 
 from app.modules import DataPreprocessing
+
+
+def normalize_data_stream(data_stream):
+    min_val = min(data_stream)
+    max_val = max(data_stream)
+    if max_val - min_val == 0:
+        normalized_stream = [1] * len(data_stream)
+    else:
+        normalized_stream = [(val - min_val) / (max_val - min_val) for val in data_stream]
+    return normalized_stream
 
 
 def stream_drift_detector(data_stream, drift_detector):
@@ -19,8 +30,12 @@ def stream_drift_detector(data_stream, drift_detector):
     """
     drift_index = []
     #data_stream = DataPreprocessing.normalize_series(data_stream)
-    for i, val in enumerate(data_stream):
-        print('val = ', val)
+    if isinstance(drift_detector, drift.binary.EDDM) or isinstance(drift_detector, drift.binary.DDM):
+        # Применить минимаксную нормализацию
+        data_stream_normalized = normalize_data_stream(data_stream)
+    else:
+        data_stream_normalized = data_stream
+    for i, val in enumerate(data_stream_normalized):
         drift_detector.update(val)
         # Метод update добавляет значение элемента в окно, обновляет соответствующую статистику,
         # в данном случае общую сумму всех значений, среднее, ширину окна и общую дисперсию.

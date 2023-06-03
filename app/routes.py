@@ -254,7 +254,7 @@ def background_work():
             # learn_model(settings)
             # Обновление параметров
             # update_data()
-        time.sleep(3)
+        #time.sleep(3)
 
 
 # Функция, работающая на фоне для примера
