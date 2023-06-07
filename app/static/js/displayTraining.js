@@ -113,14 +113,6 @@ function clearChart2() {
     }
 }
 
-//function resetParameters2() {
-//    localStorage.removeItem('timeValue');
-//    localStorage.setItem("trainingDataUpdateInterval", null);
-//    clearChart2();
-//}
-//
-//window.onbeforeunload = resetParameters2();
-
 
 // При загрузке страницы восстанавливаем состояния
 $(document).ready( function () {

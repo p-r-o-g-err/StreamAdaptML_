@@ -237,3 +237,11 @@
 .parameter-value {
     margin-left: 10px;
 }
+
+.window-size-input-container {
+    display: flex;
+    align-items: center;
+}
+.window-size-input-container input {
+    margin-right: 10px;
+}

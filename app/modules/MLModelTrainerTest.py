@@ -58,9 +58,18 @@ def compile_model(model, loss='mse', optimizer='rmsprop'):  # adam
     return model
 
 
-def get_train_test(dataset, target_column, test_size=0.333):  # , self.train_index, self.test_index
-    x_train, y_train, x_test, y_test = DataPreprocessing.get_train_test(dataset, target_column, test_size)
-    return x_train, y_train, x_test, y_test
+def get_train_test(dataset, target_column, test_size=0.333, mode='train_from_scratch'):  # , self.train_index, self.test_index
+    if mode == 'train_from_scratch':
+        x_train, y_train, x_test, y_test = DataPreprocessing.get_train_test(dataset, target_column, test_size)
+        return x_train, y_train, x_test, y_test
+    elif mode == 'train_online':
+        return None
+    elif mode == 'train_mini_batch_online':
+        return None
+    elif mode == 'train_transfer_learning':
+        return None
+    else:
+        raise 'Передан неизвестный режим в get_train_test()'
 
 class ModelGeneration(object):
     input_dataset = None  # Датасет

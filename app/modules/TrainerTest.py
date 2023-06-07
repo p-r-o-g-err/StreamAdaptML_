@@ -9,11 +9,10 @@ learning_parameters = {
     'drift_indexes': [],  # Обнаруженные точки сдвига данных
 
     'last_reading_time_for_learning_model': None,  # Время последнего считывания данных для обучения модели
-    'data_window_size': 10  # Размер окна данных (S)
 }
 
 
-def updateData():
+def updateData(window_size):
     """
     Обновляет набор данных для отладки.
     Извлекает новый набор данных на основе указанной даты начала и добавляет к текущему набору данных 1 запись.
@@ -48,6 +47,10 @@ def updateData():
         # Добавляем запись в глобальный датасет
         actual_dataset = pd.concat([learning_parameters['actual_dataset'], next_record.to_frame().transpose()],
                                    ignore_index=True)
+        # Проверяем размер actual_dataset
+        if len(actual_dataset) > window_size:
+            # Удаляем самую старую запись
+            actual_dataset = actual_dataset.iloc[1:]
 
     learning_parameters['actual_dataset'] = actual_dataset
     return True
@@ -60,7 +63,8 @@ if __name__ == "__main__":
     training_method = settings.get('training_method')
     # Метод обучения при наличии сдвига данных
     training_method_with_data_shift = settings.get('training_method_with_data_shift')
-
+    # Размер окна данных S
+    window_size = settings.get('window_size')
 
     # DataHandler.update_dataset()
     # Считывание модели
@@ -69,7 +73,7 @@ if __name__ == "__main__":
     obj_model = ModelGeneration(model=current_model)
     while True:
         # Актуализация датасета
-        result_update_dataset = updateData()  # DataHandler.update_dataset(logging=False) + read_dataset
+        result_update_dataset = updateData(window_size)  # DataHandler.update_dataset(logging=False) + read_dataset
         # Если были получены новые данные
         if result_update_dataset:
             # Подготовка актуального датасета для модели
@@ -81,7 +85,7 @@ if __name__ == "__main__":
                 #obj_model.create_model()
                 #obj_model.save_model()
                 obj_model.train_from_scratch()
-
+                q = 3
             # obj_model.save_model()
             s = 3
 

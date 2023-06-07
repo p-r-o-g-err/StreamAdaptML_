@@ -85,6 +85,7 @@ function fetchData() {
             var data = response.data;
             var driftIndexes = response.driftIndexes;
             updateChart(data, driftIndexes);
+            saveChartState(); // Сохранить состояние графика после обновления данных
         },
         error: function(error) {
             console.log(error);
@@ -120,20 +121,37 @@ function managementWork() {
 
 function restoreChartState() {
     // Выполнить AJAX запрос на маршрут Flask
-    $.ajax({
-        url: '/chart_streaming_data',
-        type: 'GET',
-        success: function(response) {
-            var data = response.data;
-            var driftIndexes = response.driftIndexes;
-            updateChart(data, driftIndexes);
-        },
-        error: function(error) {
-            console.log(error);
-        }
-    });
+//    $.ajax({
+//        url: '/chart_streaming_data',
+//        type: 'GET',
+//        success: function(response) {
+//            var data = response.data;
+//            var driftIndexes = response.driftIndexes;
+//            updateChart(data, driftIndexes);
+//        },
+//        error: function(error) {
+//            console.log(error);
+//        }
+//    });
+    // Получить сохраненные данные графика из локального хранилища
+    const chartData = localStorage.getItem('chartData');
+    const chartOptions = localStorage.getItem('chartOptions');
+
+    if (chartData && chartOptions) {
+        // Восстановить данные графика
+        chart1.data = JSON.parse(chartData);
+        chart1.options = JSON.parse(chartOptions);
+        chart1.update();
+    }
 }
 
+function saveChartState() {
+    if (chart1) {
+        // Сохранить данные графика в локальное хранилище
+        localStorage.setItem('chartData', JSON.stringify(chart1.data));
+        localStorage.setItem('chartOptions', JSON.stringify(chart1.options));
+    }
+}
 
 function restoreDriftPointsCount() {
     // Получить сохраненное значение driftPointsCount из локального хранилища
@@ -156,23 +174,36 @@ function clearChart() {
         });
         // Обновить график
         chart1.update();
+        saveChartState(); // Сохранить состояние очищенного графика
     }
 }
 
-//function resetParameters() {
-//    localStorage.removeItem('driftPointsCount');
-//    localStorage.setItem("streamingDataUpdateInterval", null);
-//    clearChart();
-//}
-//
-//window.onbeforeunload = resetParameters();
+// Очистка параметров при первом запуске
+window.onbeforeunload = function() {
+    // Выполнить AJAX запрос на маршрут Flask
+    $.ajax({
+        url: '/first_run',
+        type: 'GET',
+        success: function(response) {
+            var first_run_status = response.first_run_status;
+            if (first_run_status == true){
+                localStorage.clear();
+            }
+        },
+        error: function(error) {
+            console.log(error);
+        }
+    });
+}
+
 
 // При загрузке страницы восстанавливаем состояния
 $(document).ready( function () {
     // Создание графика
     createChart();
     // Восстанавление данных графика
-    restoreChartState();
+    restoreChartState(); // Восстановить состояние графика при загрузке страницы
+
     // Восстановить значение счетчика сдвигов в данных
     restoreDriftPointsCount();
     // Актуализация обновления данных

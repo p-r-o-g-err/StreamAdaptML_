@@ -233,7 +233,8 @@ def read_settings():
             default_settings = {
                 'data_shift_detection_method': 'ADWIN',
                 'training_method': 'mini_batch_online_learning',
-                'training_method_with_data_shift': 'autofit'
+                'training_method_with_data_shift': 'autofit',
+                'window_size': 10
             }
             json.dump(default_settings, f)
     # Считываем содержимое файла
@@ -248,7 +249,8 @@ def read_settings():
 
 def update_settings(data_shift_detection_method=None,
                     training_method=None,
-                    training_method_with_data_shift=None):
+                    training_method_with_data_shift=None,
+                    window_size=None):
     """
     Обновить настройки в файле settings.json
     :param data_shift_detection_method: метод обнаружения сдвига данных
@@ -266,6 +268,8 @@ def update_settings(data_shift_detection_method=None,
                 settings['training_method'] = training_method
             if training_method_with_data_shift is not None:
                 settings['training_method_with_data_shift'] = training_method_with_data_shift
+            if window_size is not None:
+                settings['window_size'] = window_size
             json.dump(settings, f, indent=4, ensure_ascii=False)
 
 

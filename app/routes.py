@@ -42,7 +42,7 @@ def index():
     data_shift_detection_method = settings.get('data_shift_detection_method')
     training_method = settings.get('training_method')
     training_method_with_data_shift = settings.get('training_method_with_data_shift')
-
+    window_size = settings.get('window_size')
     # Проверка наличия модели на сервере
     model_exists = app.config['LOADED_MODEL'] != None
 
@@ -53,7 +53,8 @@ def index():
                            model_status=model_status,
                            data_shift_detection_method=data_shift_detection_method,
                            training_method=training_method,
-                           training_method_with_data_shift=training_method_with_data_shift)
+                           training_method_with_data_shift=training_method_with_data_shift,
+                           window_size=window_size)
 
 
 @app.route('/download_model', methods=['POST'])
@@ -95,8 +96,9 @@ def save_settings():
     data_shift_detection_method = request.form.get(key='data-shift-detection-select')
     training_method = request.form.get(key='training-method-select')
     training_method_with_data_shift = request.form.get(key='training-method-with-data-shift-select')
+    window_size = int(request.form.get(key='window-size'))
     # Обновить настройки
-    DataHandler.update_settings(data_shift_detection_method, training_method, training_method_with_data_shift)
+    DataHandler.update_settings(data_shift_detection_method, training_method, training_method_with_data_shift, window_size)
     return redirect(url_for('index'))
 
 
@@ -106,43 +108,43 @@ def save_settings():
 # region Страница обучения
 
 learning_parameters = {
+    'first_run_status': True,  # Флаг запуска приложения (для очистки локального хранилища)
     'start_learn': None,  # Флаг запуска обучения
-    'actual_dataset': pd.DataFrame(),  # Датасет, полученный с начала обучения (D)
+    'actual_dataset': pd.DataFrame(),  # Окно данных (S)
     'last_reading_time_for_streaming_data_chart': None,  # Время последнего считывания данных графиком потоковых данных
     'drift_indexes': [],  # Обнаруженные точки сдвига данных
 
     'last_reading_time_for_learning_model': None,  # Время последнего считывания данных для обучения модели
-    'data_window_size': 10,  # Размер окна данных (S)
     'time_elapsed': datetime.timedelta(seconds=0)
 }
 
 
-@app.route('/chart_streaming_data')
-def get_chart_data():
-    if learning_parameters['actual_dataset'].empty:
-        return jsonify(data=[], driftIndexes=[])
-
-    actual_dataset = learning_parameters['actual_dataset']
-    # Оставляем только температуру и время
-    actual_dataset = actual_dataset[['date_time', 'temp_audience']]
-    json_data = actual_dataset.reset_index().to_dict(orient='records')
-    print(f'Данные для отрисовки: {json_data}')
-    # Преобразование данных перед отправкой на клиентскую сторону
-    for item in json_data:
-        if math.isnan(item['temp_audience']):
-            # Заменить NaN на None
-            item['temp_audience'] = None
-
-    drift_indexes = run_drift_detection()
-    print('Индексы точек сдвига:', drift_indexes)
-
-    # Обновляем время последнего считывания
-    learning_parameters['last_reading_time_for_streaming_data_chart'] = learning_parameters['actual_dataset']['date_time'].iloc[-1]
-    print('last_reading_time_for_streaming_data_chart:', learning_parameters['last_reading_time_for_streaming_data_chart'])
-
-    result = jsonify(data=json_data, driftIndexes=drift_indexes)
-    # Возвращаем данные графика в формате JSON
-    return result  # jsonify(result)
+# @app.route('/chart_streaming_data')
+# def get_chart_data():
+#     if learning_parameters['actual_dataset'].empty:
+#         return jsonify(data=[], driftIndexes=[])
+#
+#     actual_dataset = learning_parameters['actual_dataset']
+#     # Оставляем только температуру и время
+#     actual_dataset = actual_dataset[['date_time', 'temp_audience']]
+#     json_data = actual_dataset.reset_index().to_dict(orient='records')
+#     print(f'Данные для отрисовки: {json_data}')
+#     # Преобразование данных перед отправкой на клиентскую сторону
+#     for item in json_data:
+#         if math.isnan(item['temp_audience']):
+#             # Заменить NaN на None
+#             item['temp_audience'] = None
+#
+#     drift_indexes = run_drift_detection()
+#     print('Индексы точек сдвига:', drift_indexes)
+#
+#     # Обновляем время последнего считывания
+#     learning_parameters['last_reading_time_for_streaming_data_chart'] = learning_parameters['actual_dataset']['date_time'].iloc[-1]
+#     print('last_reading_time_for_streaming_data_chart:', learning_parameters['last_reading_time_for_streaming_data_chart'])
+#
+#     result = jsonify(data=json_data, driftIndexes=drift_indexes)
+#     # Возвращаем данные графика в формате JSON
+#     return result  # jsonify(result)
 
 
 @app.route('/learning')
@@ -153,11 +155,11 @@ def learning():
     # Инициализация конфигурации приложения
     init_config()
     # Получить данные для графика
-    actual_dataset = learning_parameters['actual_dataset']
-    if not actual_dataset.empty:
-        print('Данные для графика\n', actual_dataset[['date_time', 'temp_audience']])
-    else:
-        print('Данные для графика\n', actual_dataset)
+    # actual_dataset = learning_parameters['actual_dataset']
+    #if not actual_dataset.empty:
+    #    print('Данные для графика\n', actual_dataset[['date_time', 'temp_audience']])
+    #else:
+    #    print('Данные для графика\n', actual_dataset)
     number_drift_points = len(learning_parameters['drift_indexes'])
     return render_template('learning.html', title='Обучение', number_drift_points=number_drift_points)
 
@@ -308,7 +310,7 @@ def test_update():
         new_records = new_dataset[new_dataset['date_time'] > last_record['date_time']]
         if new_records.empty:
             return False
-
+        # data_window_size
         next_index = new_records.index[0]
         # Выбираем запись с найденным индексом в новом датасете
         next_record = new_dataset.loc[next_index]
@@ -374,6 +376,13 @@ def get_training_data():
         return result
 
 
+@app.route('/first_run')
+def get_first_run_status():
+    result = learning_parameters['first_run_status']
+    learning_parameters['first_run_status'] = False
+    return jsonify(first_run_status=result)
+
+
 @app.route('/streaming_data')
 def get_streaming_data():
     """
@@ -420,5 +429,6 @@ def get_streaming_data():
     result = jsonify(data=json_data, driftIndexes=drift_indexes)
 
     return result
+
 
 # endregion
