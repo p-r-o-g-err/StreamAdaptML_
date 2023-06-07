@@ -26,46 +26,16 @@ def normalize_dataset(dataset):
     :param dataset: Датасет для нормализации.
     :return: Нормализованный датасет и объект нормализации.
     """
-    z_index = preprocessing.StandardScaler()
-    transformed = z_index.fit_transform(dataset)
-    return pd.DataFrame(transformed, columns=dataset.columns, index=dataset.index), z_index
+    scaler = preprocessing.StandardScaler()
+    transformed = scaler.fit_transform(dataset)
+    # Сохранение scaler в файл
+    filepath = os.path.join(app.config['DATA_FOLDER'], 'scaler.pkl')
+    with open(filepath, 'wb') as file:
+        pickle.dump(scaler, file)
+    return pd.DataFrame(transformed, columns=dataset.columns, index=dataset.index)
 
 from sklearn import preprocessing
 
-def normalize_series(series):
-    """
-    Нормализует значения Series.
-    :param series: Series для нормализации.
-    :return: Нормализованный Series.
-    """
-    #normalized_values = preprocessing.scale(series)
-    #normalized_series = pd.Series(normalized_values, index=series.index)
-    # Находим минимальное и максимальное значение в Series
-    min_value = series.min()
-    max_value = series.max()
-
-    # Проверяем, чтобы минимальное и максимальное значение не совпадали
-    if min_value == max_value:
-        # Присваиваем -1 или 1 всем элементам Series
-        transformed_data = pd.Series([-1 if min_value < 0 else 1] * len(series))
-    else:
-        # Преобразуем значения к диапазону от -1 до 1
-        transformed_data = (series - min_value) / (max_value - min_value) * 2 - 1
-
-    return transformed_data
-
-
-    # min_value = series.min()
-    # max_value = series.max()
-    # # normalized_values = (series - min_value) / (max_value - min_value)
-    # # Проверка на ноль в знаменателе
-    # if max_value == min_value:
-    #     # Обработка случая, когда все значения в Series одинаковы
-    #     normalized_values = series.copy()
-    # else:
-    #     normalized_values = (series - min_value) / (max_value - min_value)
-    #
-    # return normalized_values
 
 def denormalize_dataset(normalized_dataset):
     """
@@ -206,12 +176,12 @@ def get_train_test(dataset, target_column, test_size=0.333, random_state=None):
     x = dataset[dataset.columns[indexes_x]]
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, shuffle=False, stratify=None,
                                                         random_state=random_state)
-    train_index = y_train.index
-    test_index = y_test.index
+    # train_index = y_train.index
+    # test_index = y_test.index
     x_train = x_train.values
     y_train = y_train.values
     x_test = x_test.values
     y_test = y_test.values
-    return x_train, y_train, x_test, y_test, train_index, test_index
+    return x_train, y_train, x_test, y_test  # train_index, test_index
 
 # endregion

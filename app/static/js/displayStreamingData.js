@@ -1,8 +1,11 @@
-var ctx = null;
-var chart = null;
+var ctx1 = null;
+var chart1 = null;
 function createChart() {
-    ctx = document.getElementById('streaming-data').getContext('2d');
-    chart = new Chart(ctx, {
+    if (chart1) {
+        chart1.destroy(); // Уничтожить существующий график
+    }
+    ctx1 = document.getElementById('streaming-data').getContext('2d');
+    chart1 = new Chart(ctx1, {
         type: 'line',
         data: {
             labels: [],
@@ -14,7 +17,7 @@ function createChart() {
                 fill: false,
                 borderWidth: 2
             }, {
-                label: 'Точки со сдвигом',
+                label: 'Зона детекции сдвига данных', // Точки со сдвигом
                 data: [],
                 borderColor: 'red',
                 pointStyle: 'circle',
@@ -50,16 +53,16 @@ function createChart() {
 function updateChart(data, driftIndexes) {
     for (let i = 0; i < data.length; i++) {
         const item = data[i];
-        chart.data.labels.push(item.date_time);
-        chart.data.datasets[0].data.push(item.temp);
+        chart1.data.labels.push(item.date_time);
+        chart1.data.datasets[0].data.push(item.temp_audience);
         console.log('driftIndexes: ' + driftIndexes + ' index: ' + item.index + ' result: ' + driftIndexes.includes(item.index))
         // Проверить, включен ли текущий элемент в список элементов со сдвигом
         if (driftIndexes.includes(item.index)) {
-            chart.data.datasets[1].data.push({x: item.date_time, y: item.temp});
+            chart1.data.datasets[1].data.push({x: item.date_time, y: item.temp_audience});
         }
     }
     // Обновление графика
-    chart.update();
+    chart1.update();
 
     // Обновление значения number-drift-points
     const numberDriftPointsElement = document.getElementById('number-drift-points');
@@ -76,7 +79,7 @@ function updateChart(data, driftIndexes) {
 function fetchData() {
     // Выполнить AJAX запрос на маршрут Flask
     $.ajax({
-        url: '/data',
+        url: '/streaming_data',
         type: 'GET',
         success: function(response) {
             var data = response.data;
@@ -144,8 +147,27 @@ function restoreDriftPointsCount() {
     }
 }
 
+function clearChart() {
+    if (chart1) {
+        // Очистить данные графика
+        chart1.data.labels = [];
+        chart1.data.datasets.forEach(dataset => {
+            dataset.data = [];
+        });
+        // Обновить график
+        chart1.update();
+    }
+}
 
-// При загрузке страницы вызываем функцию восстановления состояния
+//function resetParameters() {
+//    localStorage.removeItem('driftPointsCount');
+//    localStorage.setItem("streamingDataUpdateInterval", null);
+//    clearChart();
+//}
+//
+//window.onbeforeunload = resetParameters();
+
+// При загрузке страницы восстанавливаем состояния
 $(document).ready( function () {
     // Создание графика
     createChart();

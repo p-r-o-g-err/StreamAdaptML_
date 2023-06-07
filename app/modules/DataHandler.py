@@ -5,7 +5,7 @@
         2) Сохранение, считывание настроек
         3) Сохранение, считывание и отправка модели
 """
-
+import keras
 import pandas as pd
 import json
 import os
@@ -117,7 +117,8 @@ def get_dataset_for_model(audience_name=None, start_date=None, end_date=None, no
             else:
                 raise ValueError(f'Передано неизвестное название столбца: {audience_name}')
         # Объединение показаний датчиков температуры в кабинете с метеоданными
-        dataset = DataPreprocessing.merged_dataframes(dataset.filter(regex=room_number_wall.split('_')[0]), dataset[weather_cols], logging=False)
+        dataset = DataPreprocessing.merged_dataframes(dataset.filter(regex=room_number_wall.split('_')[0]),
+                                                      dataset[weather_cols], logging=False)
 
         # Предобработка полученного датасета
         if start_date is not None:
@@ -125,11 +126,7 @@ def get_dataset_for_model(audience_name=None, start_date=None, end_date=None, no
         if end_date is not None:
             dataset = dataset[dataset.index < end_date]
         if normalize:
-            dataset, scaler = DataPreprocessing.normalize_dataset(dataset)
-            # Сохранение scaler в файл
-            filepath = os.path.join(app.config['DATA_FOLDER'], 'scaler.pkl')
-            with open(filepath, 'wb') as file:
-                pickle.dump(scaler, file)
+            dataset = DataPreprocessing.normalize_dataset(dataset)
         return dataset
     return None
 
@@ -216,6 +213,8 @@ def get_merged_sensor_weather_data_update(dataset, fill_in_the_gaps=True, loggin
     concat_dataset = pd.concat([dataset, new_dataset], axis=0)
     number_new_rows = len(concat_dataset) - len(dataset)
     return concat_dataset, number_new_rows
+
+
 # endregion
 
 # endregion
@@ -301,6 +300,21 @@ def save_model(file: FileStorage):
             print('Разрешена только загрузка файлов формата ".keras"!')
 
 
+from keras.models import Model
+
+
+def save_model(model: Model):
+    models_files = os.listdir(app.config['MODELS_FOLDER'])
+    # Если в папке с моделью есть модель
+    if len(models_files) > 0:
+        # Формируем полное имя модели
+        filename = os.path.join(app.config['MODELS_FOLDER'], models_files[0])
+        model.save(filename)
+        print(f"Модель \'{filename}\' успешно сохранена")
+    else:
+        print("Ошибка сохранения модели (модель ранее не была загружена)")
+
+
 def upload_model():
     '''
     Отправка модели пользователю
@@ -324,12 +338,19 @@ def read_model():
     Считывание модели
     :return: модель в формате ...
     '''
-    pass
+    # Формируем полное имя модели
+    models_files = os.listdir(app.config['MODELS_FOLDER'])
+    # Если в папке с моделью есть модель
+    if len(models_files) > 0:
+        filename = os.path.join(app.config['MODELS_FOLDER'], models_files[0])
+        loaded_model = keras.models.load_model(filename)
+        print(f"Модель \'{filename}\' успешно загружена")
+        return loaded_model
+    else:
+        print(f"Ошибка считывания модели. Модель не загружена на сервер.")
+
 
 # endregion
-
-
-
 
 
 # ОТЛАДКА
@@ -342,13 +363,15 @@ learning_parameters = {
     'time_last_processing': None
 }
 
-def debug_update():
-    #global counter
 
-    start_date = datetime.datetime(2023, 5, 25, 16, 0, 0, 0) # datetime.datetime(2023, 5, 18, 18, 25, 42, 0) #datetime.datetime.now() - datetime.timedelta(days=10)
+def debug_update():
+    # global counter
+
+    start_date = datetime.datetime(2023, 5, 25, 16, 0, 0,
+                                   0)  # datetime.datetime(2023, 5, 18, 18, 25, 42, 0) #datetime.datetime.now() - datetime.timedelta(days=10)
     new_dataset = get_dataset_for_model(start_date=start_date,
-                                                    audience_name=None,
-                                                    normalize=False)
+                                        audience_name=None,
+                                        normalize=False)
     new_dataset = new_dataset.reset_index()
     temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
     new_dataset = new_dataset[['date_time', temp_column_name]]
@@ -370,8 +393,9 @@ def debug_update():
         # Выбираем запись с найденным индексом в новом датасете
         next_record = new_dataset.loc[next_index]
         # Добавляем запись в глобальный датасет
-        #actual_dataset = learning_parameters['actual_dataset'].append(next_record, ignore_index=True)
-        actual_dataset = pd.concat([learning_parameters['actual_dataset'], next_record.to_frame().transpose()], ignore_index=True)
+        # actual_dataset = learning_parameters['actual_dataset'].append(next_record, ignore_index=True)
+        actual_dataset = pd.concat([learning_parameters['actual_dataset'], next_record.to_frame().transpose()],
+                                   ignore_index=True)
         s = 3
     # if learning_parameters['actual_dataset'].shape[0] != 0:
     #     old_dataset = learning_parameters['actual_dataset']
@@ -403,11 +427,13 @@ def debug_update():
     #     actual_dataset = new_dataset.head(1)
     # print(actual_dataset)
     learning_parameters['actual_dataset'] = actual_dataset
-    print("Актуальный датасет: ",actual_dataset)
+    print("Актуальный датасет: ", actual_dataset)
+
 
 results = []
 
 drift_results = []
+
 
 def debug_drift_detection():
     # Детекция дрейфа
@@ -423,16 +449,13 @@ def debug_drift_detection():
     # test.final_chart_dots(data_stream, drift_index_adwin_a, drift_values_adwin_a, abrupt_drift=True)
 
 
-
-
 if __name__ == "__main__":
-    #drift.binary.ddm.test_ddm()
     # Обновление данных
-    #update_dataset()
-    #dataset_for_model = read_dataset()
+    # update_dataset()
+    # dataset_for_model = read_dataset()
     # Получение нормализованного датасета для модели
-    current_time = datetime.datetime.now() - timedelta(days=10)
-    dataset_for_model = get_dataset_for_model(start_date=current_time, audience_name=None, normalize=True)
+    start_date = datetime.datetime.now() - timedelta(days=10)
+    dataset_for_model = get_dataset_for_model(start_date=start_date, audience_name=None, normalize=True)
     # Денормализация датасета
     denormalize_dataset = DataPreprocessing.denormalize_dataset(normalized_dataset=dataset_for_model)
     s = 3
@@ -457,7 +480,7 @@ if __name__ == "__main__":
         if learning_parameters['actual_dataset'].shape[0] > 1:
             debug_drift_detection()
         actual_dataset = learning_parameters['actual_dataset']
-        #print(actual_dataset)
+        # print(actual_dataset)
 
         # Если данные уже были ранее получены, то берем только новые данные
         if learning_parameters['time_last_processing'] is not None:
@@ -467,10 +490,10 @@ if __name__ == "__main__":
 
         print(actual_dataset['date_time'].iloc[-1])
         # Обновляем время последнего считывания
-        #print(f'actual_dataset = {actual_dataset}')
-        #print(f"date_time = {actual_dataset['date_time']}")
-        #print(type(actual_dataset['date_time']))
-        #print(type(actual_dataset))
+        # print(f'actual_dataset = {actual_dataset}')
+        # print(f"date_time = {actual_dataset['date_time']}")
+        # print(type(actual_dataset['date_time']))
+        # print(type(actual_dataset))
         learning_parameters['time_last_processing'] = actual_dataset['date_time'].iloc[-1]
         # rows = learning_parameters['actual_dataset'].iloc[0:counter + 1]
 

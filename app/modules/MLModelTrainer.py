@@ -17,8 +17,15 @@ from sklearn.metrics import mean_squared_error
 from keras.models import model_from_json
 
 
-# Инициализация модели
 def create_model(x_train, drop_out=0.2, activation='linear', optimizer='rmsprop'):
+    """
+    Создает модель для прогнозирования временных рядов с использованием слоев LSTM
+    :param x_train: входные данные для обучения. Должны быть трехмерным тензором, где последнее измерение представляет количество признаков.
+    :param drop_out: вероятность отключения нейронов Dropout слоя для избежания переобучения (по умолчанию 0.2).
+    :param activation: функция активации для последнего полносвязного слоя (по умолчанию linear).
+    :param optimizer: оптимизатор для компиляции модели (по умолчанию rmsprop).
+    :return: Созданная модель
+    """
     model = Sequential()
     # 1 слой: принимает 3D тензор, возвращает всю выходную последовательность (many-to-many) с размерностью выходного пространства - 50
     model.add(LSTM(input_shape=[x_train.shape[-1], 1], units=50, return_sequences=True))
@@ -28,7 +35,7 @@ def create_model(x_train, drop_out=0.2, activation='linear', optimizer='rmsprop'
     model.add(LSTM(units=100, return_sequences=False))
     # 4 слой: избегаем переобучения с помощью Dropout слоя
     model.add(Dropout(drop_out))
-    # 5 слой: плотносвязанный слой, возвращающий прогнозы с размерностью выходного пространства - 1
+    # 5 слой: полносвязный слой, возвращающий прогнозы с размерностью выходного пространства - 1
     model.add(Dense(units=1, activation=activation))
     # model.add(Activation(activation))
     start = datetime.now()
@@ -51,20 +58,22 @@ def model_predict(model, x_test):
 
 # Ошибка прогноза RMSE
 def print_error(testY, test_predict):
-    test_rmse = mean_squared_error(testY, test_predict, squared=False)
-    print('\tТест RMSE: %.3f' % (test_rmse))
+    test_mse = mean_squared_error(testY, test_predict, squared=False)
+    print('\tТест RMSE: %.3f' % test_mse)
 
 
 # Сохранение модели
 def save_model(model, model_name):
-    if len(model_name.split('.')) == 1: model_name = model_name + '.keras'
+    if len(model_name.split('.')) == 1:
+        model_name = model_name + '.keras'
     model.save(model_name)
     print(f"Модель \'{model_name}\' успешно сохранена")
 
 
 # Загрузка модели
 def load_model(model_name, loss='mse', optimizer='adam'):
-    if len(model_name.split('.')) == 1: model_name = model_name + '.keras'
+    if len(model_name.split('.')) == 1:
+        model_name = model_name + '.keras'
     loaded_model = keras.models.load_model(model_name)
     print(f"Модель \'{model_name}\' успешно загружена")
     # Компиляция модели 
@@ -88,7 +97,8 @@ class ModelGeneration(object):
     def __init__(self, dataset, model=None):
         self.input_dataset = dataset
         self.target_column = list(dataset.filter(regex='wall_temp'))[0]
-        if model is not None: self.result_model = model
+        if model is not None:
+            self.result_model = model
 
     def get_train_test(self, test_size):
         self.x_train, self.y_train, self.x_test, self.y_test, self.train_index, self.test_index = DataPreprocessing.get_train_test(
@@ -164,9 +174,11 @@ class ModelGeneration(object):
             print('Передан неизвестный режим отображения. Ожидалось одно из следующих значений: none, png, browser')
         else:
             self.plot_predicted(visual_mode, plot_bat=plot_bat, plot_weather=plot_weather)
-            if find_anomalies:
-                print("Обнаружение аномалий")
-                self.find_anomalies('high_diff', visual_mode)
+            # if find_anomalies:
+            #     print("Обнаружение аномалий")
+            #     self.find_anomalies('high_diff', visual_mode)
+
+
 
 
 import matplotlib.pyplot as plt
@@ -241,3 +253,4 @@ def batch_stream_learn(loaded_model, dataset, batch_size=5, epochs=10, visual=Tr
         plt.show()
 
     return loaded_model, loss
+

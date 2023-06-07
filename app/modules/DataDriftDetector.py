@@ -9,6 +9,11 @@ from app.modules import DataPreprocessing
 
 
 def normalize_data_stream(data_stream):
+    """
+    Нормализует значения потока данных (Series).
+    :param data_stream: Series для нормализации.
+    :return: Нормализованный Series.
+    """
     min_val = min(data_stream)
     max_val = max(data_stream)
     if max_val - min_val == 0:

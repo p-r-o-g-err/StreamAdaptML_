@@ -40,6 +40,7 @@
 							if (data == 'Фоновая работа запущена') {
 								M.toast({html: "Фоновая работа запущена"});
 								managementWork();
+								managementWork2();
 								$('#start-learning').hide(); // Скрываем кнопку "Запустить"
 								$('#stop-learning').show(); // Показываем кнопку "Остановить"
 							}
@@ -64,6 +65,9 @@
 						$('#stop-learning').hide(); // Скрываем кнопку "Остановить"
             			$('#start-learning').show(); // Показываем кнопку "Запустить"
             			managementWork();
+            			managementWork2();
+<!--            			resetParameters();-->
+<!--            			resetParameters2();-->
 					} else {
 					    M.toast({html: "Фоновая работа уже остановлена"});
 					}
@@ -77,7 +81,7 @@
 
 	<div id="training-display-container" class="flow-text">
 	    <h5>Производительность модели</h5>
-
+		<div style="width: 800px;"><canvas id="model-performance"></canvas></div>
 		<div class="parameter-container">
 			<span class="parameter-name">Прошло времени (hh:mm:ss):</span>
 			<span id="time-value" class="parameter-value">00:00:00</span>
@@ -98,6 +102,7 @@
 
 
 	<script async src="../static/js/displayStreamingData.js"></script>
+	<script async src="../static/js/displayTraining.js"></script>
 	<script>
 		// При загрузке страницы вызываем функцию восстановления состояния
 		document.addEventListener('DOMContentLoaded', function() {
