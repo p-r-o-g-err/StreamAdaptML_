@@ -41,6 +41,7 @@
 								M.toast({html: "Фоновая работа запущена"});
 								managementWork();
 								managementWork2();
+								managementWork3();
 								$('#start-learning').hide(); // Скрываем кнопку "Запустить"
 								$('#stop-learning').show(); // Показываем кнопку "Остановить"
 							}
@@ -66,6 +67,7 @@
             			$('#start-learning').show(); // Показываем кнопку "Запустить"
             			managementWork();
             			managementWork2();
+            			managementWork3();
 <!--            			resetParameters();-->
 <!--            			resetParameters2();-->
 					} else {
@@ -94,15 +96,16 @@
 			<span class="parameter-name">Точность (R²):</span>
 			<span id="accuracy-value" class="parameter-value">0,000%</span>
 		</div>
-		<div class="parameter-container">
-			<span class="parameter-name">Изменение точности за время обучения:</span>
-			<span id="change-value" class="parameter-value">+0,000%</span>
-		</div>
+<!--		<div class="parameter-container">-->
+<!--			<span class="parameter-name">Изменение точности за время обучения:</span>-->
+<!--			<span id="change-value" class="parameter-value">+0,000%</span>-->
+<!--		</div>-->
 	</div>
 
 
 	<script async src="../static/js/displayStreamingData.js"></script>
 	<script async src="../static/js/displayTraining.js"></script>
+	<script async src="../static/js/displayPredictions.js"></script>
 	<script>
 		// При загрузке страницы вызываем функцию восстановления состояния
 		document.addEventListener('DOMContentLoaded', function() {
@@ -125,7 +128,7 @@
 	<div class="divider"></div>
 	<div id="forecast-display-container" class="flow-text">
 	    <h5>Прогнозы модели</h5>
-
+		<div style="width: 800px;"><canvas id="model-predictions"></canvas></div>
 	</div>
 	<div class="divider"></div>
 	<div id="streaming-data-display-container" class="flow-text">

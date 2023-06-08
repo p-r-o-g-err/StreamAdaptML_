@@ -5,8 +5,7 @@
         2) Обучить модель на потоковых данных с выбором метода обучения при наличии и отсутствии сдвига данных
 """
 import pandas as pd
-import DataPreprocessing
-import Visualization
+import numpy as np
 import keras.models
 from keras import backend as K
 from keras.models import Sequential
@@ -17,7 +16,7 @@ import datetime
 from sklearn.metrics import r2_score  #  mean_squared_error, accuracy_score
 from keras.models import model_from_json
 
-from app.modules import DataHandler
+from app.modules import DataHandler, DataPreprocessing, Visualization
 
 
 def create_model(x_train, drop_out=0.2, activation='linear', optimizer='rmsprop'):
@@ -60,14 +59,19 @@ def compile_model(model, loss='mse', optimizer='rmsprop'):  # adam
     return model
 
 
-def get_train_test(dataset, target_column, test_size=0.333, mode='train_from_scratch'):  # , self.train_index, self.test_index
+def get_train_test(dataset, target_column, test_size=0.333, mode='train_from_scratch'):
     if mode == 'train_from_scratch':
-        x_train, y_train, x_test, y_test, index_train, index_test = DataPreprocessing.get_train_test(dataset, target_column, test_size)
+        x_train, y_train, x_test, y_test, index_train, index_test = DataPreprocessing.get_train_test_for_train_from_scratch(
+            dataset, target_column, test_size)
         return x_train, y_train, x_test, y_test, index_train, index_test
     elif mode == 'train_online':
-        return None
+        x_train, y_train, x_test, y_test, index_train, index_test = DataPreprocessing.get_train_test_for_online_learning(
+            dataset, target_column)
+        return x_train, y_train, x_test, y_test, index_train, index_test
     elif mode == 'train_mini_batch_online':
-        return None
+        x_train, y_train, x_test, y_test, index_train, index_test = DataPreprocessing.get_train_test_for_online_learning(
+            dataset, target_column)
+        return x_train, y_train, x_test, y_test, index_train, index_test
     elif mode == 'train_transfer_learning':
         return None
     else:
@@ -111,17 +115,29 @@ class ModelGeneration(object):
         :param dataset: входной датасет.
         :param epochs: количество эпох (по умолчанию 1).
         """
-        x_train, y_train, x_test, y_test = \
+        x_train, y_train, x_test, y_test, index_train, index_test = \
             get_train_test(dataset, self.target_column, mode='train_online')
+
         start = datetime.datetime.now()
         for epoch in range(epochs):
             for i in range(len(x_train)):
                 x = x_train[i]
                 y = y_train[i]
-                x = x.reshape(1, *x.shape)  # Преобразование входных данных в форму (1, input_shape)
-                self.current_model.train_on_batch(x, y)
+                x = np.array([x])
+                y = np.array([y])
+                self.history = self.current_model.train_on_batch(x, y)
             print(f"Эпоха {epoch + 1}/{epochs} - Обучение завершено")
         print('Время обучения : {}'.format(datetime.datetime.now() - start))
+
+        # Прогнозирование значений
+        predicted_test = self.current_model.predict(x_test)
+
+        # Сохранение предсказаний для графика
+        self.predicted = pd.DataFrame(index=index_test, data=predicted_test, columns=[self.target_column])
+
+        # Вычисление точности (MSE, R2)
+        self.compute_mse(y_test, predicted_test.flatten())
+        self.compute_r_squared(y_test, predicted_test.flatten())
 
     def train_mini_batch_online(self, dataset, batch_size=32, epochs=1):
         """
@@ -131,16 +147,29 @@ class ModelGeneration(object):
         :param batch_size: размер пакета для обновления весов (по умолчанию 32).
         :param epochs: количество эпох (по умолчанию 1).
         """
-        x_train, y_train, x_test, y_test = \
+        x_train, y_train, x_test, y_test, index_train, index_test = \
             get_train_test(dataset, self.target_column, mode='train_mini_batch_online')
+
         start = datetime.datetime.now()
         for epoch in range(epochs):
             for i in range(0, len(x_train), batch_size):
                 x_batch = x_train[i:i + batch_size]
                 y_batch = y_train[i:i + batch_size]
-                self.current_model.train_on_batch(x_batch, y_batch)
+                # x = np.array([x])
+                # y = np.array([y])
+                self.history = self.current_model.train_on_batch(x_batch, y_batch)
             print(f"Эпоха {epoch + 1}/{epochs} - Обучение завершено")
         print('Время обучения : {}'.format(datetime.datetime.now() - start))
+
+        # Прогнозирование значений
+        predicted_test = self.current_model.predict(x_test)
+
+        # Сохранение предсказаний для графика
+        self.predicted = pd.DataFrame(index=index_test, data=predicted_test, columns=[self.target_column])
+
+        # Вычисление точности (MSE, R2)
+        self.compute_mse(y_test, predicted_test.flatten())
+        self.compute_r_squared(y_test, predicted_test.flatten())
 
     def train_from_scratch(self, dataset, batch_size=32, epochs=10, test_size=0.333):
         """
@@ -162,8 +191,8 @@ class ModelGeneration(object):
         predicted_test = self.current_model.predict(x_test)
 
         # Сохранение предсказаний для графика
-        a1 = pd.DataFrame(index=index_train, data=predicted_train, columns=['temp'])
-        a2 = pd.DataFrame(index=index_test, data=predicted_test, columns=['temp'])
+        a1 = pd.DataFrame(index=index_train, data=predicted_train, columns=[self.target_column])
+        a2 = pd.DataFrame(index=index_test, data=predicted_test, columns=[self.target_column])
         self.predicted = pd.concat([a1, a2])
 
         # Вычисление точности (MSE, R2)
@@ -208,7 +237,7 @@ class ModelGeneration(object):
         print('\tТест MSE: %.3f' % self.mse)
 
     def compute_r_squared(self, y_true, y_pred):
-        self.r2 = r2_score(y_true, y_pred)
+        self.r2 = float(r2_score(y_true, y_pred))
         print('\tТест R2: %.3f' % self.r2)
         # numerator = np.sum(np.square(y_true - y_pred))
         # denominator = np.sum(np.square(y_true - y_mean))

@@ -57,6 +57,19 @@ def denormalize_dataset(normalized_dataset):
     denormalized = scaler.inverse_transform(normalized_dataset)
     return pd.DataFrame(denormalized, columns=normalized_dataset.columns, index=normalized_dataset.index)
 
+def denormalize_temp(normalized_dataset):
+    """
+    Денормализует значения датасета.
+    :param normalized_dataset: Нормализованный датасет.
+    :return: Денормализованный датасет.
+    """
+    new_dataset = pd.concat(
+        [pd.DataFrame(None, index=normalized_dataset.index, columns=['new_col']), normalized_dataset,
+         pd.DataFrame(columns=[f'extra_{i + 1}' for i in range(7)])], axis=1)
+
+    denormalized = denormalize_dataset(new_dataset)
+    return denormalized['temp_audience']
+
 # Удалить столбцы с заданным процентом пропусков
 def del_cols_with_skips(data=None, cols=None, percentage_skips=50):
     """
@@ -169,7 +182,7 @@ def preprocess_dataset(dataframe, cols=None, logging=True):
 
 
 # Разделение датасета на обучающую и тестовую выборки
-def get_train_test(dataset, target_column, test_size=0.333, random_state=None):
+def get_train_test_for_train_from_scratch(dataset, target_column, test_size=0.333, random_state=None):
     index_y = list(dataset.columns).index(target_column)
     indexes_x = [i for i in range(len(dataset.columns)) if i != index_y]
     y = dataset[dataset.columns[index_y]]
@@ -182,6 +195,19 @@ def get_train_test(dataset, target_column, test_size=0.333, random_state=None):
     y_train = y_train.values
     x_test = x_test.values
     y_test = y_test.values
+    return x_train, y_train, x_test, y_test, train_index, test_index
+
+def get_train_test_for_online_learning(dataset, target_column):
+    index_y = list(dataset.columns).index(target_column)
+    indexes_x = [i for i in range(len(dataset.columns)) if i != index_y]
+    y = dataset[dataset.columns[index_y]]
+    x = dataset[dataset.columns[indexes_x]]
+    train_index = x.index
+    test_index = x.index
+    x_train = x.values
+    y_train = y.values
+    x_test = x.values
+    y_test = y.values
     return x_train, y_train, x_test, y_test, train_index, test_index
 
 # endregion

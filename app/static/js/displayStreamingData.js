@@ -55,7 +55,7 @@ function updateChart(data, driftIndexes) {
         const item = data[i];
         chart1.data.labels.push(item.date_time);
         chart1.data.datasets[0].data.push(item.temp_audience);
-        console.log('driftIndexes: ' + driftIndexes + ' index: ' + item.index + ' result: ' + driftIndexes.includes(item.index))
+        // console.log('driftIndexes: ' + driftIndexes + ' index: ' + item.index + ' result: ' + driftIndexes.includes(item.index))
         // Проверить, включен ли текущий элемент в список элементов со сдвигом
         if (driftIndexes.includes(item.index)) {
             chart1.data.datasets[1].data.push({x: item.date_time, y: item.temp_audience});
