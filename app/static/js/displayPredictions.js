@@ -91,7 +91,7 @@ function managementWork3() {
             // Установить обновление данных и графика каждые n секунд
             interval = setInterval(function() {
                 fetchData3();
-            }, 1 * 1000);
+            }, 1.5 * 1000);
             localStorage.setItem("predictionsDataUpdateInterval", interval);
         }
         // Иначе остановить обновление

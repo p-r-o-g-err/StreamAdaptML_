@@ -44,16 +44,17 @@ function createChart2() {
 
 // Отображение данных на графике
 function updateChart2(loss) {
-//    console.log('Сработал updateChart2')
-//    for (let i = 0; i < true_temp.length; i++) {
-//        const item = true_temp[i];
-//        chart2.data.labels.push(item.date_time);
-//        chart2.data.datasets[0].data.push(item.temp_audience);
-//        console.log('date_time: ' + item.date_time + ' true_temp: ' + item.temp_audience)
-//    }
-//
-//    // Обновление графика
-//    chart3.update();
+    console.log('Сработал updateChart2')
+    console.log('loss: ' + loss)
+    for (let i = 0; i < loss.length; i++) {
+        const item = loss[i];
+        chart2.data.labels.push(item.date_time);
+        chart2.data.datasets[0].data.push(item.loss);
+        console.log('date_time: ' + item.date_time + ' loss: ' + item.loss)
+    }
+
+    // Обновление графика
+    chart2.update();
 }
 
 function updateParameters(training_time, mse, r2) {
@@ -126,9 +127,10 @@ function fetchData2() {
             var training_time = response.training_time;
             var mse = response.mse;
             var r2 = response.r2;
+            var loss = response.loss;
             console.log('training_time: ' + training_time + ' mse: ' + mse + ' r2: ' + r2)
-            updateParameters(training_time, mse, r2);
-            //updateChart2(loss);
+            updateParameters(training_time, mse, r2, loss);
+            updateChart2(loss);
             saveChartState2(); // Сохранить состояние графика после обновления данных
         },
         error: function(error) {

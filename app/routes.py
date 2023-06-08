@@ -124,7 +124,8 @@ learning_parameters = {
     'true_temp': None,
     'mse': None,
     'r2': None,
-    'last_reading_time_for_predictions_data_chart': None
+    'last_reading_time_for_predictions_data_chart': None,
+    'last_reading_time_for_training_data_chart': None
 }
 
 
@@ -534,13 +535,41 @@ def get_training_data():
 
         mse = None
         r2 = None
+        loss = []
         if learning_parameters['predicted_temp'] is not None:
             if not learning_parameters['predicted_temp'].to_frame().empty:
                 mse = round(learning_parameters['mse'], 3)
                 r2 = str(round(learning_parameters['r2'] * 100, 3)) + '%'
 
+        # Данные графика
+        if mse is not None:
+            # Если время последнего считывания не задано, то задаем
+            if learning_parameters['last_reading_time_for_training_data_chart'] is None:
+                if learning_parameters['last_reading_time_for_predictions_data_chart'] is not None:
+                    learning_parameters['last_reading_time_for_training_data_chart'] = learning_parameters['last_reading_time_for_predictions_data_chart']
+                    date_time = learning_parameters['last_reading_time_for_training_data_chart']
+                    loss = pd.DataFrame({'date_time': [date_time], 'loss': [mse]}).reset_index().to_dict(
+                        orient='records')
+                else:
+                    if learning_parameters['true_temp'] is not None:
+                        true_temp = learning_parameters['true_temp'].to_frame().reset_index()
+                        learning_parameters['last_reading_time_for_training_data_chart'] = true_temp['date_time'].iloc[-1]
+                        date_time = learning_parameters['last_reading_time_for_training_data_chart']
+                        loss = pd.DataFrame({'date_time': [date_time], 'loss': [mse]}).reset_index().to_dict(
+                            orient='records')
+            else:
+                # Если время последнего считывания не совпадает с временем последнего считывания графиком прогнозов, то задаем
+                if learning_parameters['last_reading_time_for_predictions_data_chart'] is not None:
+                    if learning_parameters['last_reading_time_for_training_data_chart'] != learning_parameters['last_reading_time_for_predictions_data_chart']:
+                        learning_parameters['last_reading_time_for_training_data_chart'] = learning_parameters['last_reading_time_for_predictions_data_chart']
+                        date_time = learning_parameters['last_reading_time_for_training_data_chart']
+                        loss = pd.DataFrame({'date_time': [date_time], 'loss': [mse]}).reset_index().to_dict(orient='records')
+
+
+        print('loss:', loss)
+
         # Отправляем данные и индексы сдвига на клиентскую сторону
-        result = jsonify(training_time=training_time, mse=mse, r2=r2)
+        result = jsonify(training_time=training_time, mse=mse, r2=r2, loss=loss)
         return result
 
 
@@ -554,8 +583,8 @@ def get_first_run_status():
 def get_predictions_data():
     true_temp = learning_parameters['true_temp']
     predicted_temp = learning_parameters['predicted_temp']
-    print('true_temp:', true_temp)
-    print('predicted_temp:', predicted_temp)
+    # print('true_temp:', true_temp)
+    # print('predicted_temp:', predicted_temp)
     if predicted_temp is None or true_temp is None:
         return jsonify(true_temp=[], predicted_temp=[])
 
@@ -573,7 +602,7 @@ def get_predictions_data():
     if true_temp.empty or predicted_temp.empty:
         return jsonify(true_temp=[], predicted_temp=[])
     # Обновляем время последнего считывания
-    print('true_temp', true_temp)
+    # print('true_temp', true_temp)
     learning_parameters['last_reading_time_for_predictions_data_chart'] = true_temp['date_time'].iloc[-1]
 
     # Преобразование данных в формат, пригодный для передачи через AJAX
