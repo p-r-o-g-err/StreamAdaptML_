@@ -8,11 +8,13 @@ import pandas as pd
 import DataPreprocessing
 import Visualization
 import keras.models
+from keras import backend as K
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers import LSTM
+from keras.metrics.regression_metrics import mean_squared_error
 import datetime
-from sklearn.metrics import mean_squared_error, accuracy_score
+from sklearn.metrics import r2_score  #  mean_squared_error, accuracy_score
 from keras.models import model_from_json
 
 from app.modules import DataHandler
@@ -60,8 +62,8 @@ def compile_model(model, loss='mse', optimizer='rmsprop'):  # adam
 
 def get_train_test(dataset, target_column, test_size=0.333, mode='train_from_scratch'):  # , self.train_index, self.test_index
     if mode == 'train_from_scratch':
-        x_train, y_train, x_test, y_test = DataPreprocessing.get_train_test(dataset, target_column, test_size)
-        return x_train, y_train, x_test, y_test
+        x_train, y_train, x_test, y_test, index_train, index_test = DataPreprocessing.get_train_test(dataset, target_column, test_size)
+        return x_train, y_train, x_test, y_test, index_train, index_test
     elif mode == 'train_online':
         return None
     elif mode == 'train_mini_batch_online':
@@ -72,39 +74,29 @@ def get_train_test(dataset, target_column, test_size=0.333, mode='train_from_scr
         raise 'Передан неизвестный режим в get_train_test()'
 
 class ModelGeneration(object):
-    input_dataset = None  # Датасет
     current_model = None  # Текущая модель
     target_column = 'temp_audience'  # Название целевого столбца (Y)
-    x_train = None  # Данные для обучения модели
-    y_train = None  # Метки для обучения модели
-    x_test = None  # Тестовые данные
-    y_test = None  # Тестовые метки
-
-    # train_index = None  # Индексы тренировочных данных
-    # test_index = None  # Индексы тестовых данных
     predicted = None  # Предсказания
-
-    def __init__(self, dataset=None, model=None):
+    mse = None
+    r2 = None
+    history = None
+    def __init__(self, model=None):
         """
         Инициализирует объект класса ModelGeneration.
-        :param dataset: Датасет для обучения модели.
         :param model: Загруженная модель (по умолчанию None).
         """
-        if dataset is not None:
-            self.input_dataset = dataset
         if model is not None:
             # Компиляция модели
             self.current_model = compile_model(model=model)
 
-    def create_model(self, dataset=None):
-        if dataset is not None:
-            self.input_dataset = dataset
-        if self.input_dataset is not None:
-            self.x_train, self.y_train, self.x_test, self.y_test = \
-                get_train_test(self.input_dataset, self.target_column, 0.333)
-            self.current_model = create_model(x_train=self.x_train)
-        else:
-            raise 'Датасет не найден'
+    def create_model(self, dataset):
+        """
+        Создает новую модель
+        :param dataset: входной датасет.
+        """
+        x_train, y_train, x_test, y_test, index_train, index_test = \
+            get_train_test(dataset, self.target_column, 0.333)
+        self.current_model = create_model(x_train=x_train)
 
     def save_model(self):
         """
@@ -112,17 +104,15 @@ class ModelGeneration(object):
         """
         DataHandler.save_model(self.current_model)
 
-    def set_dataset(self, dataset):
-        self.input_dataset = dataset
-
-    def train_online(self, x_train, y_train, epochs=1):  # validation_split=0.1
+    def train_online(self, dataset, epochs=1):  # validation_split=0.1
         """
         Метод онлайн-обучения (online learning).
         Обучает модель на потоковых данных путем последовательного обновления весов модели после каждого примера.
-        :param x_train: входные данные для обучения.
-        :param y_train: целевые значения для обучения.
+        :param dataset: входной датасет.
         :param epochs: количество эпох (по умолчанию 1).
         """
+        x_train, y_train, x_test, y_test = \
+            get_train_test(dataset, self.target_column, mode='train_online')
         start = datetime.datetime.now()
         for epoch in range(epochs):
             for i in range(len(x_train)):
@@ -133,42 +123,60 @@ class ModelGeneration(object):
             print(f"Эпоха {epoch + 1}/{epochs} - Обучение завершено")
         print('Время обучения : {}'.format(datetime.datetime.now() - start))
 
-    def train_mini_batch_online(self, x_train, y_train, batch_size=32, epochs=1):
+    def train_mini_batch_online(self, dataset, batch_size=32, epochs=1):
         """
         Метод пакетного онлайн-обучения (mini-batch online learning).
         Обучает модель на потоковых данных путем обновления весов модели после каждого пакета данных.
-        :param x_train: входные данные для обучения.
-        :param y_train: целевые значения для обучения.
+        :param dataset: входной датасет.
         :param batch_size: размер пакета для обновления весов (по умолчанию 32).
         :param epochs: количество эпох (по умолчанию 1).
         """
+        x_train, y_train, x_test, y_test = \
+            get_train_test(dataset, self.target_column, mode='train_mini_batch_online')
+        start = datetime.datetime.now()
         for epoch in range(epochs):
             for i in range(0, len(x_train), batch_size):
                 x_batch = x_train[i:i + batch_size]
                 y_batch = y_train[i:i + batch_size]
                 self.current_model.train_on_batch(x_batch, y_batch)
             print(f"Эпоха {epoch + 1}/{epochs} - Обучение завершено")
+        print('Время обучения : {}'.format(datetime.datetime.now() - start))
 
-    def train_from_scratch(self, batch_size=32, epochs=10, test_size=0.333):
+    def train_from_scratch(self, dataset, batch_size=32, epochs=10, test_size=0.333):
         """
         Метод обучения с нуля (from scratch).
         Обучает модель на обучающем наборе данных с нуля.
-        :param x_train: входные данные для обучения.
-        :param y_train: целевые значения для обучения.
+        :param dataset: входной датасет.
         :param batch_size: размер пакета для обновления весов (по умолчанию 32).
         :param epochs: количество эпох (по умолчанию 10).
         :param test_size: доля тестовых данных в обучении (по умолчанию 0.333).
         """
-        self.x_train, self.y_train, self.x_test, self.y_test = \
-            get_train_test(self.input_dataset, self.target_column, test_size)
-        self.current_model.fit(x=self.x_train, y=self.y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1)
+        x_train, y_train, x_test, y_test, index_train, index_test = \
+            get_train_test(dataset, self.target_column, test_size, mode='train_from_scratch')
+        start = datetime.datetime.now()
+        self.history = self.current_model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1)
+        print('Время обучения : {}'.format(datetime.datetime.now() - start))
 
-    def train_transfer_learning(self, x_train, y_train, batch_size=32, epochs=10):
+        # Прогнозирование значений
+        predicted_train = self.current_model.predict(x_train)
+        predicted_test = self.current_model.predict(x_test)
+
+        # Сохранение предсказаний для графика
+        a1 = pd.DataFrame(index=index_train, data=predicted_train, columns=['temp'])
+        a2 = pd.DataFrame(index=index_test, data=predicted_test, columns=['temp'])
+        self.predicted = pd.concat([a1, a2])
+
+        # Вычисление точности (MSE, R2)
+        self.compute_mse(y_test, predicted_test.flatten())
+        self.compute_r_squared(y_test, predicted_test.flatten())
+
+        #history.history['loss']
+
+    def train_transfer_learning(self, dataset, batch_size=32, epochs=10, test_size=0.333):
         """
         Метод трансферного обучения (transfer learning).
         Обучает модель на обучающем наборе данных, используя предварительно обученные веса модели.
-        :param x_train: входные данные для обучения.
-        :param y_train: целевые значения для обучения.
+        :param dataset: входной датасет.
         :param batch_size: размер пакета для обновления весов (по умолчанию 32).
         :param epochs: количество эпох (по умолчанию 10).
         """
@@ -179,78 +187,33 @@ class ModelGeneration(object):
         # Компиляция модели после заморозки весов
         self.current_model.compile(loss='mse', optimizer='adam')
 
+        start = datetime.datetime.now()
+
+        x_train, y_train, x_test, y_test = \
+            get_train_test(dataset, self.target_column, test_size, mode='train_transfer_learning')
+
         # Обучение модели
         self.current_model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1)
+        print('Время обучения : {}'.format(datetime.datetime.now() - start))
 
-    # def train_autofit(self):
-    #     pass
-
-    def predict(self, x_test):
-        """
-        Прогнозирование на данных.
-        :param x_test: входные данные для прогнозирования.
-        :return: предсказанные значения.
-        """
-        if x_test is not None:
-            self.x_test = x_test
-        if self.x_test is None:
-            print('Отсутствует тестовая выборка (Запустите get_train_test())')
-        else:
-            self.predicted = self.current_model.predict(self.x_test)
-
-    def compute_error(self):
-        """
-        Вычисление ошибки прогноза.
-        :param y_true: фактические значения.
-        :param y_pred: предсказанные значения.
-        :return: значение ошибки.
-        """
-        if self.y_test is None:
-            print('Отсутствует тестовая выборка')
-        elif self.predicted is None:
-            print('Предсказания отсутствуют (Запустите predict())')
-        else:
-            accuracy = mean_squared_error(self.y_test, self.predicted.flatten(), squared=False)
-            print('\tТест MSE: %.3f' % (accuracy))
-            return accuracy
-
-        # mse = mean_squared_error(y_true, y_pred, squared=False)
-        # print('\tТест MSE: %.3f' % mse)
-        # return mse
-
-    def compute_accuracy(self):
-        #MSE
-        #R2
+    def train_autofit(self, dataset):
+        # Инициализировать модели MS = {M1, M2, M3, M4}
+        # Получить значение функции потерь для каждой модели
+        # Определить модель с минимальным значением функции потерь
+        # Заменить веса исходной модели M на веса модели с минимальным значением функции потерь
         pass
 
-    # def compute_accuracy(self, y_true, y_pred, threshold=0.5):
-    #     """
-    #     Вычисление точности модели.
-    #     :param y_true: фактические значения.
-    #     :param y_pred: предсказанные значения.
-    #     :param threshold: пороговое значение для классификации (по умолчанию 0.5).
-    #     :return: значение точности.
-    #     """
-    #     if self.y_test is None: print('Отсутствует тестовая выборка (Запустите get_train_test())')
-    #     elif self.predicted is None: print('Предсказания отсутствуют (Запустите model_predict())')
-    #     else:
-    #         accuracy = mean_squared_error(self.y_test, self.predicted.flatten(), squared=False)
-    #         print('\tТест MSE: %.3f' % (accuracy))
-    #         return accuracy
+    def compute_mse(self, y_test, y_pred):
+        self.mse = float(mean_squared_error(y_test, y_pred))
+        print('\tТест MSE: %.3f' % self.mse)
 
-        # y_pred_classes = (y_pred > threshold).astype(int)
-        # accuracy = accuracy_score(y_true, y_pred_classes)
-        # return accuracy
+    def compute_r_squared(self, y_true, y_pred):
+        self.r2 = r2_score(y_true, y_pred)
+        print('\tТест R2: %.3f' % self.r2)
+        # numerator = np.sum(np.square(y_true - y_pred))
+        # denominator = np.sum(np.square(y_true - y_mean))
+        # result = 1 - numerator/denominator
 
-
-
-    # def fit_model(self, epochs_num):
-    #     if self.current_model is None:
-    #         print('Не инициализирована модель (Укажите модель)')
-    #     elif (self.x_train is None) or (self.y_train is None):
-    #         print('Отсутствует тренировочная выборка (Запустите get_train_test())')
-    #     else:
-    #         fit_model(self.current_model, self.x_train, self.y_train, epochs=epochs_num)
 
     def visual_learning(self):
         if self.current_model is None:
@@ -258,35 +221,22 @@ class ModelGeneration(object):
         else:
             Visualization.plot_model(self.current_model)
 
-    # def model_predict(self):
-    #     if self.x_test is None:
-    #         print('Отсутствует тестовая выборка (Запустите get_train_test())')
-    #     else:
-    #         self.predicted = self.current_model.predict(self.x_test)
 
-    # def print_error(self):
+    # def plot_predicted(self, renderer='browser', plot_bat=False, plot_weather=False):
     #     if self.y_test is None:
     #         print('Отсутствует тестовая выборка (Запустите get_train_test())')
     #     elif self.predicted is None:
     #         print('Предсказания отсутствуют (Запустите model_predict())')
     #     else:
-    #         print_error(self.y_test, self.predicted.flatten())
-
-    def plot_predicted(self, renderer='browser', plot_bat=False, plot_weather=False):
-        if self.y_test is None:
-            print('Отсутствует тестовая выборка (Запустите get_train_test())')
-        elif self.predicted is None:
-            print('Предсказания отсутствуют (Запустите model_predict())')
-        else:
-            temp_bat_col = None
-            temp_outside_col = None
-            if plot_bat:
-                temp_bat_col = self.input_dataset[self.input_dataset.filter(regex='bat_temp').columns[0]]
-            if plot_weather:
-                temp_outside_col = self.input_dataset['temp']
-            Visualization.plot_temps_series_predicted(self.test_index, self.y_test, self.predicted.flatten(), renderer,
-                                                      temp_bat_col, temp_outside_col)
-
+    #         temp_bat_col = None
+    #         temp_outside_col = None
+    #         if plot_bat:
+    #             temp_bat_col = self.input_dataset[self.input_dataset.filter(regex='bat_temp').columns[0]]
+    #         if plot_weather:
+    #             temp_outside_col = self.input_dataset['temp']
+    #         Visualization.plot_temps_series_predicted(self.test_index, self.y_test, self.predicted.flatten(), renderer,
+    #                                                   temp_bat_col, temp_outside_col)
+    #
 
     # Функция, запускающая все остальные
     def create_prediction_model(self, test_size=0.333, drop_out=0.2, activation='linear', optimizer='rmsprop',

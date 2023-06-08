@@ -176,12 +176,12 @@ def get_train_test(dataset, target_column, test_size=0.333, random_state=None):
     x = dataset[dataset.columns[indexes_x]]
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, shuffle=False, stratify=None,
                                                         random_state=random_state)
-    # train_index = y_train.index
-    # test_index = y_test.index
+    train_index = y_train.index
+    test_index = y_test.index
     x_train = x_train.values
     y_train = y_train.values
     x_test = x_test.values
     y_test = y_test.values
-    return x_train, y_train, x_test, y_test  # train_index, test_index
+    return x_train, y_train, x_test, y_test, train_index, test_index
 
 # endregion

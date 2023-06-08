@@ -40,7 +40,7 @@ def stream_drift_detector(data_stream, drift_detector):
         data_stream_normalized = normalize_data_stream(data_stream)
     else:
         data_stream_normalized = data_stream
-    for i, val in enumerate(data_stream_normalized):
+    for i, val in data_stream_normalized.items():  # for i, val in enumerate(data_stream_normalized):
         drift_detector.update(val)
         # Метод update добавляет значение элемента в окно, обновляет соответствующую статистику,
         # в данном случае общую сумму всех значений, среднее, ширину окна и общую дисперсию.
@@ -49,5 +49,5 @@ def stream_drift_detector(data_stream, drift_detector):
             print(f'Зафиксирован сдвиг на индексе {i}')
             drift_index.append(i)
 
-    return drift_index
+    return drift_detector, drift_index
 

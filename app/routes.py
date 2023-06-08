@@ -113,7 +113,8 @@ learning_parameters = {
     'actual_dataset': pd.DataFrame(),  # Окно данных (S)
     'last_reading_time_for_streaming_data_chart': None,  # Время последнего считывания данных графиком потоковых данных
     'drift_indexes': [],  # Обнаруженные точки сдвига данных
-
+    'drift_detector': None,  # Детектор сдвига данных
+    'last_element_for_drift_detector': None,  # Последний элемент, считанный при работе метода обнаружения сдвига данных
     'last_reading_time_for_learning_model': None,  # Время последнего считывания данных для обучения модели
     'time_elapsed': datetime.timedelta(seconds=0)
 }
@@ -240,16 +241,24 @@ stop_event = None
 
 def background_work():
     global stop_event
+    # Считывание настроек обучения
+    settings = DataHandler.read_settings()
+    # Метод обучения при отсутствии сдвига данных
+    #training_method = settings.get('training_method')
+    # Метод обучения при наличии сдвига данных
+    #training_method_with_data_shift = settings.get('training_method_with_data_shift')
+    # Размер окна данных для дообучения (S)
+    window_size = settings.get('window_size')
     # Выполнять фоновые задачи, пока не будет получен запрос на остановку
     while not stop_event.is_set():
         # Для отладки
-        print(get_current_time())
+        # print(get_current_time())
         # Актуализация датасета
-        result_update_dataset = test_update()  # DataHandler.update_dataset(logging=False) + read_dataset
+        result_update_dataset = updateData(window_size)  # DataHandler.update_dataset(logging=False) + read_dataset
         # Если были получены новые данные
         if result_update_dataset:
             # Обновить точки сдвига
-            learning_parameters['drift_indexes'] = run_drift_detection()
+            run_drift_detection() #learning_parameters['drift_indexes'] =
             # Для примера берем каждые 3 точки
             # learning_parameters['drift_indexes'] = list(learning_parameters['actual_dataset'][['date_time', 'temp_audience']].index[::3])
             # Получить текущий датасет
@@ -281,8 +290,7 @@ def get_current_time():
     formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
     return formatted_time
 
-
-def test_update():
+def updateData(window_size):
     """
     Обновляет набор данных для отладки.
     Извлекает новый набор данных на основе указанной даты начала и добавляет к текущему набору данных 1 запись.
@@ -310,17 +318,62 @@ def test_update():
         new_records = new_dataset[new_dataset['date_time'] > last_record['date_time']]
         if new_records.empty:
             return False
-        # data_window_size
+
         next_index = new_records.index[0]
         # Выбираем запись с найденным индексом в новом датасете
         next_record = new_dataset.loc[next_index]
         # Добавляем запись в глобальный датасет
         actual_dataset = pd.concat([learning_parameters['actual_dataset'], next_record.to_frame().transpose()],
-                                   ignore_index=True)
+                                   ignore_index=False)
+        # Проверяем размер actual_dataset
+        if len(actual_dataset) > window_size:
+            # Удаляем самую старую запись
+            actual_dataset = actual_dataset.iloc[1:]
 
     learning_parameters['actual_dataset'] = actual_dataset
     return True
-
+# def updateData(window_size):
+#     """
+#     Обновляет набор данных для отладки.
+#     Извлекает новый набор данных на основе указанной даты начала и добавляет к текущему набору данных 1 запись.
+#     :return: None
+#     """
+#     # Определяем начальное время
+#     start_date = datetime.datetime.now() - datetime.timedelta(days=10)
+#     # Считываем датасет
+#     new_dataset = DataHandler.get_dataset_for_model(start_date=start_date,
+#                                                     audience_name=None,
+#                                                     normalize=False)
+#     new_dataset = new_dataset.reset_index()
+#     # Определяем столбец температуры
+#     temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
+#     # Переименовываем столбец
+#     # new_dataset = new_dataset[['date_time', temp_column_name]]
+#     new_dataset.rename(columns={temp_column_name: 'temp_audience'}, inplace=True)
+#
+#     if learning_parameters['actual_dataset'].empty:
+#         actual_dataset = new_dataset.head(1)
+#     else:
+#         # Получаем последнюю запись из глобального датасета
+#         last_record = learning_parameters['actual_dataset'].iloc[-1]
+#
+#         new_records = new_dataset[new_dataset['date_time'] > last_record['date_time']]
+#         if new_records.empty:
+#             return False
+#
+#         next_index = new_records.index[0]
+#         # Выбираем запись с найденным индексом в новом датасете
+#         next_record = new_dataset.loc[next_index]
+#         # Добавляем запись в глобальный датасет
+#         actual_dataset = pd.concat([learning_parameters['actual_dataset'], next_record.to_frame().transpose()],
+#                                    ignore_index=True)
+#         # Проверяем размер actual_dataset
+#         if len(actual_dataset) > window_size:
+#             # Удаляем самую старую запись
+#             actual_dataset = actual_dataset.iloc[1:]
+#
+#     learning_parameters['actual_dataset'] = actual_dataset
+#     return True
 
 def run_drift_detection():
     """
@@ -328,28 +381,82 @@ def run_drift_detection():
     :return: Список индексов, где обнаружен сдвиг.
     """
     if learning_parameters['actual_dataset'].empty:
-        return []
+        return False
     else:
-        data_stream = learning_parameters['actual_dataset']['temp_audience']
-
-        # Чтение значения data_shift_detection_method из файла settings.json
-        settings = DataHandler.read_settings()
-        data_shift_detection_method = settings.get('data_shift_detection_method')
-
-        # Выбор метода обнаружения сдвига на основе значения data_shift_detection_method
-        if data_shift_detection_method == 'ADWIN':
-            drift_detector = drift.ADWIN()
-        elif data_shift_detection_method == 'DDM':
-            drift_detector = drift.binary.DDM()
-        elif data_shift_detection_method == 'EDDM':
-            drift_detector = drift.binary.EDDM()
+        actual_dataset = learning_parameters['actual_dataset']
+        last_element = learning_parameters['last_element_for_drift_detector']
+        if last_element is None:
+            learning_parameters['last_element_for_drift_detector'] = actual_dataset.iloc[-1]
         else:
-            # По умолчанию используется ADWIN, если значение не указано или некорректно
-            drift_detector = drift.ADWIN()
-        print('Метод обнаружения сдвига:', data_shift_detection_method)
-        drift_indexes = DataDriftDetector.stream_drift_detector(data_stream, drift_detector)
+            actual_dataset = actual_dataset[actual_dataset['date_time'] > last_element['date_time']]
+            learning_parameters['last_element_for_drift_detector'] = actual_dataset.iloc[-1]
+
+        data_stream = actual_dataset['temp_audience']
+
+        if learning_parameters['drift_detector'] is None:
+            # Чтение значения data_shift_detection_method из файла settings.json
+            settings = DataHandler.read_settings()
+            data_shift_detection_method = settings.get('data_shift_detection_method')
+
+            print('Метод обнаружения сдвига:', data_shift_detection_method)
+            # Выбор метода обнаружения сдвига на основе значения data_shift_detection_method
+            if data_shift_detection_method == 'ADWIN':
+                drift_detector = drift.ADWIN()
+            elif data_shift_detection_method == 'DDM':
+                drift_detector = drift.binary.DDM()
+            elif data_shift_detection_method == 'EDDM':
+                drift_detector = drift.binary.EDDM()
+            else:
+                # По умолчанию используется ADWIN, если значение не указано или некорректно
+                drift_detector = drift.ADWIN()
+        else:
+            drift_detector = learning_parameters['drift_detector']
+
+        drift_detector, drift_indexes = DataDriftDetector.stream_drift_detector(data_stream, drift_detector)
+
+        learning_parameters['drift_detector'] = drift_detector
         print(drift_indexes)
-        return drift_indexes
+
+        # Определить наличие сдвига на последних данных
+        is_drift = len(drift_indexes) > len(learning_parameters['drift_indexes'])
+        # Сохранить точки сдвига
+        if len(learning_parameters['drift_indexes']) == 0:
+            learning_parameters['drift_indexes'] = drift_indexes
+        else:
+            for i in drift_indexes:
+                learning_parameters['drift_indexes'].append(i)
+
+        # Вернуть флаг наличия сдвига
+        return is_drift
+
+# def run_drift_detection():
+#     """
+#     Выполняет обнаружение сдвига в наборе данных.
+#     :return: Список индексов, где обнаружен сдвиг.
+#     """
+#     if learning_parameters['actual_dataset'].empty:
+#         return []
+#     else:
+#         data_stream = learning_parameters['actual_dataset']['temp_audience']
+#
+#         # Чтение значения data_shift_detection_method из файла settings.json
+#         settings = DataHandler.read_settings()
+#         data_shift_detection_method = settings.get('data_shift_detection_method')
+#
+#         # Выбор метода обнаружения сдвига на основе значения data_shift_detection_method
+#         if data_shift_detection_method == 'ADWIN':
+#             drift_detector = drift.ADWIN()
+#         elif data_shift_detection_method == 'DDM':
+#             drift_detector = drift.binary.DDM()
+#         elif data_shift_detection_method == 'EDDM':
+#             drift_detector = drift.binary.EDDM()
+#         else:
+#             # По умолчанию используется ADWIN, если значение не указано или некорректно
+#             drift_detector = drift.ADWIN()
+#         print('Метод обнаружения сдвига:', data_shift_detection_method)
+#         drift_indexes = DataDriftDetector.stream_drift_detector(data_stream, drift_detector)
+#         print(drift_indexes)
+#         return drift_indexes
 
 
 @app.route('/training_data')

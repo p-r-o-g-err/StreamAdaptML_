@@ -63,7 +63,7 @@ def plot_temps_series_predicted(dates, test, predicted, renderer='browser', temp
         fig.add_trace(go.Scatter(x=dates, y=temp_bat_col, name="battery", mode='lines', marker={ 'color': 'maroon' }, hovertemplate='%{x|%d-%b-%Y %H:00}: %{y} °C'))
     if temp_outside is not None:
         fig.add_trace(go.Scatter(x=dates, y=temp_outside, name="weather", mode='lines', marker={ 'color': 'teal' }, hovertemplate='%{x|%d-%b-%Y %H:00}: %{y} °C'))
-   
+
     fig.update_layout(
       title="Результат прогнозирования модели",
       font=dict(family="Franklin Gothic", size=18),
