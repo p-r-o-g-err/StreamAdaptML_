@@ -539,6 +539,8 @@ def get_training_data():
         if learning_parameters['predicted_temp'] is not None:
             if not learning_parameters['predicted_temp'].to_frame().empty:
                 mse = round(learning_parameters['mse'], 3)
+                if mse > 1:
+                    mse = 1.000
                 r2 = str(round(learning_parameters['r2'] * 100, 3)) + '%'
 
         # Данные графика

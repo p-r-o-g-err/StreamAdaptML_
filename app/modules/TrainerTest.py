@@ -118,6 +118,22 @@ def run_drift_detection():
 
 
 if __name__ == "__main__":
+    # # Считывание модели
+    # current_model = DataHandler.read_model()
+    # # Инициализация модели
+    # obj_model = ModelGeneration(model=current_model)
+    # new_dataset = DataHandler.get_dataset_for_model(audience_name=None, normalize=False)
+    # # Переименовываем столбец
+    # temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
+    # new_dataset.rename(columns={temp_column_name: 'temp_audience'}, inplace=True)
+    #
+    # dataset = DataPreprocessing.normalize_dataset(new_dataset)
+    #
+    # obj_model.train_from_scratch(new_dataset)
+    # obj_model.save_model()
+    # print()
+
+
     # Считывание настроек обучения
     settings = DataHandler.read_settings()
     # Метод обучения при отсутствии сдвига данных
