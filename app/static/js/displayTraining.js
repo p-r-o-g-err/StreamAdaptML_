@@ -40,8 +40,6 @@ function createChart2() {
     });
 }
 
-
-
 // Отображение данных на графике
 function updateChart2(loss) {
     console.log('Сработал updateChart2')
@@ -52,7 +50,6 @@ function updateChart2(loss) {
         chart2.data.datasets[0].data.push(item.loss);
         console.log('date_time: ' + item.date_time + ' loss: ' + item.loss)
     }
-
     // Обновление графика
     chart2.update();
 }
@@ -87,7 +84,6 @@ function updateParameters(training_time, mse, r2) {
         }
     }
 }
-
 
 function restoreParameters() {
     // Получить сохраненное значение параметров из локального хранилища
@@ -161,7 +157,6 @@ function managementWork2() {
     });
 }
 
-
 function restoreChartState2() {
     // Получить сохраненные данные графика из локального хранилища
     const chartData = localStorage.getItem('chartData2');
@@ -175,7 +170,6 @@ function restoreChartState2() {
     }
 }
 
-
 function saveChartState2() {
     if (chart2) {
         // Сохранить данные графика в локальное хранилище
@@ -183,8 +177,6 @@ function saveChartState2() {
         localStorage.setItem('chartOptions2', JSON.stringify(chart2.options));
     }
 }
-
-
 
 // При загрузке страницы восстанавливаем состояния
 $(document).ready( function () {
@@ -196,6 +188,4 @@ $(document).ready( function () {
     restoreParameters();
     // Актуализация обновления данных
     managementWork2();
-
-    //console.log('Сработал displayTraining')
 });

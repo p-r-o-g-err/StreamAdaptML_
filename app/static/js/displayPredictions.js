@@ -132,10 +132,8 @@ function saveChartState3() {
 $(document).ready( function () {
     // Создание графика
     createChart3();
-    // Восстанавление данных графика
-    restoreChartState3(); // Восстановить состояние графика при загрузке страницы
-
+    // Восстановить состояние графика при загрузке страницы
+    restoreChartState3();
     // Актуализация обновления данных
     managementWork3();
-
 });

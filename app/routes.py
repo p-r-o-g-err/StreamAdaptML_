@@ -1,9 +1,7 @@
-'''
+"""
     Описание роутов, которые обрабатывают запросы клиента
-'''
-import json
+"""
 import math
-
 import pandas as pd
 from app import app
 from flask import render_template, request, send_file, redirect, url_for, jsonify
@@ -12,7 +10,6 @@ from river import drift
 import os
 import threading
 import datetime
-
 from app.modules.MLModelTrainerTest import ModelGeneration
 
 
@@ -129,34 +126,6 @@ learning_parameters = {
 }
 
 
-# @app.route('/chart_streaming_data')
-# def get_chart_data():
-#     if learning_parameters['actual_dataset'].empty:
-#         return jsonify(data=[], driftIndexes=[])
-#
-#     actual_dataset = learning_parameters['actual_dataset']
-#     # Оставляем только температуру и время
-#     actual_dataset = actual_dataset[['date_time', 'temp_audience']]
-#     json_data = actual_dataset.reset_index().to_dict(orient='records')
-#     print(f'Данные для отрисовки: {json_data}')
-#     # Преобразование данных перед отправкой на клиентскую сторону
-#     for item in json_data:
-#         if math.isnan(item['temp_audience']):
-#             # Заменить NaN на None
-#             item['temp_audience'] = None
-#
-#     drift_indexes = run_drift_detection()
-#     print('Индексы точек сдвига:', drift_indexes)
-#
-#     # Обновляем время последнего считывания
-#     learning_parameters['last_reading_time_for_streaming_data_chart'] = learning_parameters['actual_dataset']['date_time'].iloc[-1]
-#     print('last_reading_time_for_streaming_data_chart:', learning_parameters['last_reading_time_for_streaming_data_chart'])
-#
-#     result = jsonify(data=json_data, driftIndexes=drift_indexes)
-#     # Возвращаем данные графика в формате JSON
-#     return result  # jsonify(result)
-
-
 @app.route('/learning')
 def learning():
     """
@@ -243,10 +212,10 @@ def check_model():
 new_data = {}
 
 from threading import Thread
-import time
 
 background_thread = None
 stop_event = None
+
 
 def background_work():
     global stop_event
@@ -306,6 +275,7 @@ def background_work():
                     #     obj_model.train_transfer_learning(dataset)
                     else:
                         print('Передан неверный метод обучения модели при отсутствии сдвига данных')
+                # obj_model.save_model()
 
                 # Получаем фактические и предсказанные значения для окна S
                 predicted_temp = DataPreprocessing.denormalize_temp(obj_model.predicted)
@@ -317,32 +287,8 @@ def background_work():
                 learning_parameters['true_temp'] = true_temp
                 learning_parameters['mse'] = mse
                 learning_parameters['r2'] = r2
+        # time.sleep(3)
 
-            # Получение нормализованного датасета для модели
-            #start_learn = learning_parameters['start_learn']
-            #dataset = DataPreprocessing.normalize_dataset(actual_dataset)
-
-            # dataset_for_model = DataHandler.get_dataset_for_model(start_date=start_learn,
-            #                                                      audience_name=None,
-            #                                                      normalize=True)
-            # Обновляем actual_dataset
-            # learning_parameters['actual_dataset'] = dataset_for_model
-
-            s = 3
-            # Обучение модели
-            # learn_model(settings)
-            # Обновление параметров
-            # update_data()
-        #time.sleep(3)
-
-
-
-
-# Функция, работающая на фоне для примера
-def get_current_time():
-    current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-    return formatted_time
 
 def updateData(window_size):
     """
@@ -360,7 +306,6 @@ def updateData(window_size):
     # Определяем столбец температуры
     temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
     # Переименовываем столбец
-    # new_dataset = new_dataset[['date_time', temp_column_name]]
     new_dataset.rename(columns={temp_column_name: 'temp_audience'}, inplace=True)
 
     if learning_parameters['actual_dataset'].empty:
@@ -386,48 +331,7 @@ def updateData(window_size):
 
     learning_parameters['actual_dataset'] = actual_dataset
     return True
-# def updateData(window_size):
-#     """
-#     Обновляет набор данных для отладки.
-#     Извлекает новый набор данных на основе указанной даты начала и добавляет к текущему набору данных 1 запись.
-#     :return: None
-#     """
-#     # Определяем начальное время
-#     start_date = datetime.datetime.now() - datetime.timedelta(days=10)
-#     # Считываем датасет
-#     new_dataset = DataHandler.get_dataset_for_model(start_date=start_date,
-#                                                     audience_name=None,
-#                                                     normalize=False)
-#     new_dataset = new_dataset.reset_index()
-#     # Определяем столбец температуры
-#     temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
-#     # Переименовываем столбец
-#     # new_dataset = new_dataset[['date_time', temp_column_name]]
-#     new_dataset.rename(columns={temp_column_name: 'temp_audience'}, inplace=True)
-#
-#     if learning_parameters['actual_dataset'].empty:
-#         actual_dataset = new_dataset.head(1)
-#     else:
-#         # Получаем последнюю запись из глобального датасета
-#         last_record = learning_parameters['actual_dataset'].iloc[-1]
-#
-#         new_records = new_dataset[new_dataset['date_time'] > last_record['date_time']]
-#         if new_records.empty:
-#             return False
-#
-#         next_index = new_records.index[0]
-#         # Выбираем запись с найденным индексом в новом датасете
-#         next_record = new_dataset.loc[next_index]
-#         # Добавляем запись в глобальный датасет
-#         actual_dataset = pd.concat([learning_parameters['actual_dataset'], next_record.to_frame().transpose()],
-#                                    ignore_index=True)
-#         # Проверяем размер actual_dataset
-#         if len(actual_dataset) > window_size:
-#             # Удаляем самую старую запись
-#             actual_dataset = actual_dataset.iloc[1:]
-#
-#     learning_parameters['actual_dataset'] = actual_dataset
-#     return True
+
 
 def run_drift_detection():
     """
@@ -483,35 +387,6 @@ def run_drift_detection():
         # Вернуть флаг наличия сдвига
         return is_drift
 
-# def run_drift_detection():
-#     """
-#     Выполняет обнаружение сдвига в наборе данных.
-#     :return: Список индексов, где обнаружен сдвиг.
-#     """
-#     if learning_parameters['actual_dataset'].empty:
-#         return []
-#     else:
-#         data_stream = learning_parameters['actual_dataset']['temp_audience']
-#
-#         # Чтение значения data_shift_detection_method из файла settings.json
-#         settings = DataHandler.read_settings()
-#         data_shift_detection_method = settings.get('data_shift_detection_method')
-#
-#         # Выбор метода обнаружения сдвига на основе значения data_shift_detection_method
-#         if data_shift_detection_method == 'ADWIN':
-#             drift_detector = drift.ADWIN()
-#         elif data_shift_detection_method == 'DDM':
-#             drift_detector = drift.binary.DDM()
-#         elif data_shift_detection_method == 'EDDM':
-#             drift_detector = drift.binary.EDDM()
-#         else:
-#             # По умолчанию используется ADWIN, если значение не указано или некорректно
-#             drift_detector = drift.ADWIN()
-#         print('Метод обнаружения сдвига:', data_shift_detection_method)
-#         drift_indexes = DataDriftDetector.stream_drift_detector(data_stream, drift_detector)
-#         print(drift_indexes)
-#         return drift_indexes
-
 
 @app.route('/training_data')
 def get_training_data():
@@ -566,10 +441,7 @@ def get_training_data():
                         learning_parameters['last_reading_time_for_training_data_chart'] = learning_parameters['last_reading_time_for_predictions_data_chart']
                         date_time = learning_parameters['last_reading_time_for_training_data_chart']
                         loss = pd.DataFrame({'date_time': [date_time], 'loss': [mse]}).reset_index().to_dict(orient='records')
-
-
-        print('loss:', loss)
-
+        # print('loss:', loss)
         # Отправляем данные и индексы сдвига на клиентскую сторону
         result = jsonify(training_time=training_time, mse=mse, r2=r2, loss=loss)
         return result
@@ -580,6 +452,7 @@ def get_first_run_status():
     result = learning_parameters['first_run_status']
     learning_parameters['first_run_status'] = False
     return jsonify(first_run_status=result)
+
 
 @app.route('/predictions_data')
 def get_predictions_data():
@@ -600,21 +473,19 @@ def get_predictions_data():
         predicted_temp = predicted_temp[
             predicted_temp['index'] > learning_parameters['last_reading_time_for_predictions_data_chart']]
 
-
     if true_temp.empty or predicted_temp.empty:
         return jsonify(true_temp=[], predicted_temp=[])
     # Обновляем время последнего считывания
-    # print('true_temp', true_temp)
     learning_parameters['last_reading_time_for_predictions_data_chart'] = true_temp['date_time'].iloc[-1]
 
     # Преобразование данных в формат, пригодный для передачи через AJAX
     true_json = true_temp.to_dict(orient='records')
     pred_json = predicted_temp.to_dict(orient='records')
 
-
     # Отправляем данные на клиентскую сторону
     result = jsonify(true_temp=true_json, pred_temp=pred_json)
     return result
+
 
 @app.route('/streaming_data')
 def get_streaming_data():
@@ -625,34 +496,24 @@ def get_streaming_data():
     :return:
     """
 
-    # Обновление данных
-    #test_update()
-    # Получить индексы строк со сдвигом
-    #drift_indexes = list(learning_parameters['actual_dataset'].index[::3])
-    #drift_indexes = run_drift_detection()
-
     drift_indexes = learning_parameters['drift_indexes']
     print('Индексы точек сдвига:', drift_indexes)
     actual_dataset = learning_parameters['actual_dataset']
-    # Оставляем только температуру кабинета и время
-    # print(actual_dataset)
     # Проверка, если actual_dataset пустой, вернуть пустой ответ
     if actual_dataset.empty:
         print('Пустой датасет:', actual_dataset)
-        return jsonify(data=[], driftIndexes=[])
+        return jsonify(data=[], driftIndexes=drift_indexes)
 
+    # Оставляем только температуру кабинета и время
     actual_dataset = actual_dataset[['date_time', 'temp_audience']]
 
     # Если данные уже были ранее получены, то берем только новые данные
     if learning_parameters['last_reading_time_for_streaming_data_chart'] is not None:
         actual_dataset = actual_dataset[actual_dataset['date_time'] > learning_parameters['last_reading_time_for_streaming_data_chart']]
 
-
     if actual_dataset.empty:
-        #print('Пустой датасет:', actual_dataset)
-        return jsonify(data=[], driftIndexes=[])
+        return jsonify(data=[], driftIndexes=drift_indexes)
 
-    #print('Перед ошибкой:', actual_dataset)
     # Обновляем время последнего считывания
     learning_parameters['last_reading_time_for_streaming_data_chart'] = actual_dataset['date_time'].iloc[-1]
 
@@ -670,6 +531,4 @@ def get_streaming_data():
     result = jsonify(data=json_data, driftIndexes=drift_indexes)
 
     return result
-
-
 # endregion

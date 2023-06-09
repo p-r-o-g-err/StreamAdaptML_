@@ -55,7 +55,6 @@ function updateChart(data, driftIndexes) {
         const item = data[i];
         chart1.data.labels.push(item.date_time);
         chart1.data.datasets[0].data.push(item.temp_audience);
-        // console.log('driftIndexes: ' + driftIndexes + ' index: ' + item.index + ' result: ' + driftIndexes.includes(item.index))
         // Проверить, включен ли текущий элемент в список элементов со сдвигом
         if (driftIndexes.includes(item.index)) {
             chart1.data.datasets[1].data.push({x: item.date_time, y: item.temp_audience});
@@ -74,7 +73,6 @@ function updateChart(data, driftIndexes) {
     }
 }
 
-
 // Загрузка и отображение исходных данных
 function fetchData() {
     // Выполнить AJAX запрос на маршрут Flask
@@ -84,6 +82,7 @@ function fetchData() {
         success: function(response) {
             var data = response.data;
             var driftIndexes = response.driftIndexes;
+            console.log('Количество driftIndexes: ' + driftIndexes.length.toString())
             updateChart(data, driftIndexes);
             saveChartState(); // Сохранить состояние графика после обновления данных
         },
@@ -92,7 +91,6 @@ function fetchData() {
         }
     });
 }
-
 
 function managementWork() {
     $.get('/check_status', function(data) {
@@ -118,21 +116,7 @@ function managementWork() {
     });
 }
 
-
 function restoreChartState() {
-    // Выполнить AJAX запрос на маршрут Flask
-//    $.ajax({
-//        url: '/chart_streaming_data',
-//        type: 'GET',
-//        success: function(response) {
-//            var data = response.data;
-//            var driftIndexes = response.driftIndexes;
-//            updateChart(data, driftIndexes);
-//        },
-//        error: function(error) {
-//            console.log(error);
-//        }
-//    });
     // Получить сохраненные данные графика из локального хранилища
     const chartData = localStorage.getItem('chartData');
     const chartOptions = localStorage.getItem('chartOptions');
@@ -165,19 +149,6 @@ function restoreDriftPointsCount() {
     }
 }
 
-function clearChart() {
-    if (chart1) {
-        // Очистить данные графика
-        chart1.data.labels = [];
-        chart1.data.datasets.forEach(dataset => {
-            dataset.data = [];
-        });
-        // Обновить график
-        chart1.update();
-        saveChartState(); // Сохранить состояние очищенного графика
-    }
-}
-
 // Очистка параметров при первом запуске
 window.onbeforeunload = function() {
     // Выполнить AJAX запрос на маршрут Flask
@@ -196,14 +167,12 @@ window.onbeforeunload = function() {
     });
 }
 
-
 // При загрузке страницы восстанавливаем состояния
 $(document).ready( function () {
     // Создание графика
     createChart();
-    // Восстанавление данных графика
-    restoreChartState(); // Восстановить состояние графика при загрузке страницы
-
+     // Восстановить состояние графика при загрузке страницы
+    restoreChartState();
     // Восстановить значение счетчика сдвигов в данных
     restoreDriftPointsCount();
     // Актуализация обновления данных
