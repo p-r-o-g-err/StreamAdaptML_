@@ -520,7 +520,7 @@ def get_streaming_data():
     # Преобразование данных в формат, пригодный для передачи через AJAX
     json_data = actual_dataset.reset_index().to_dict(orient='records')
     print(f'Данные для отрисовки: {json_data}')
-    print('last_reading_time_for_streaming_data_chart:', learning_parameters['last_reading_time_for_streaming_data_chart'])
+    # print('last_reading_time_for_streaming_data_chart:', learning_parameters['last_reading_time_for_streaming_data_chart'])
 
     # Преобразование данных перед отправкой на клиентскую сторону
     for item in json_data:

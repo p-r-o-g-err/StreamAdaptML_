@@ -59,6 +59,9 @@ function updateChart(data, driftIndexes) {
         if (driftIndexes.includes(item.index)) {
             chart1.data.datasets[1].data.push({x: item.date_time, y: item.temp_audience});
         }
+        console.log('Потоковые данные - date_time: ' +  item.date_time + ' temp: ' + item.temp_audience + ' is_drift: ' + driftIndexes.includes(item.index));
+
+        console.log('Потоковые данные - точки сдвига: ' + driftIndexes + ' всего: ' + driftIndexes.length.toString());
     }
     // Обновление графика
     chart1.update();
@@ -71,6 +74,7 @@ function updateChart(data, driftIndexes) {
         // Сохранить значение driftIndexes.length в локальное хранилище
         localStorage.setItem('driftPointsCount', driftIndexes.length.toString());
     }
+
 }
 
 // Загрузка и отображение исходных данных
@@ -82,7 +86,6 @@ function fetchData() {
         success: function(response) {
             var data = response.data;
             var driftIndexes = response.driftIndexes;
-            console.log('Количество driftIndexes: ' + driftIndexes.length.toString())
             updateChart(data, driftIndexes);
             saveChartState(); // Сохранить состояние графика после обновления данных
         },

@@ -53,11 +53,10 @@ function updateChart3(true_temp, pred_temp) {
         const item = true_temp[i];
         chart3.data.labels.push(item.date_time);
         chart3.data.datasets[0].data.push(item.temp_audience);
-        console.log('date_time: ' + item.date_time + ' true_temp: ' + item.temp_audience)
 
         const item2 = pred_temp[i];
         chart3.data.datasets[1].data.push({x: item2.index, y: item2.temp_audience});
-        console.log('date_time: ' + item2.index + ' pred_temp: ' + item2.temp_audience)
+        console.log('Прогнозы модели - date_time: ' + item.date_time + ' true_temp: ' + item.temp_audience + ' pred_temp: ' + item2.temp_audience)
     }
 
     // Обновление графика
