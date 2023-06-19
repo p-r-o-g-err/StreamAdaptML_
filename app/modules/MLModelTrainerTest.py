@@ -19,13 +19,13 @@ from keras.models import model_from_json
 from app.modules import DataHandler, DataPreprocessing, Visualization
 
 
-def create_model(x_train, drop_out=0.2, activation='linear', optimizer='rmsprop'):
+def create_model(x_train, drop_out=0.2, activation='linear', optimizer='adam'): # rmsprop
     """
     Создает модель для прогнозирования временных рядов с использованием слоев LSTM
     :param x_train: входные данные для обучения. Должны быть трехмерным тензором, где последнее измерение представляет количество признаков.
     :param drop_out: вероятность отключения нейронов Dropout слоя для избежания переобучения (по умолчанию 0.2).
     :param activation: функция активации для последнего полносвязного слоя (по умолчанию linear).
-    :param optimizer: оптимизатор для компиляции модели (по умолчанию rmsprop).
+    :param optimizer: оптимизатор для компиляции модели (по умолчанию adam).
     :return: Созданная модель
     """
     model = Sequential()
@@ -47,12 +47,12 @@ def create_model(x_train, drop_out=0.2, activation='linear', optimizer='rmsprop'
     return model
 
 
-def compile_model(model, loss='mse', optimizer='rmsprop'):  # adam
+def compile_model(model, loss='mse', optimizer='adam'):  # adam
     """
     Компиляция модели
     :param model: модель в формате .keras
     :param loss: функция потерь для компиляции модели (по умолчанию mse).
-    :param optimizer: оптимизатор для компиляции модели (по умолчанию rmsprop).
+    :param optimizer: оптимизатор для компиляции модели (по умолчанию adam).
     :return: Созданная модель
     """
     model.compile(loss=loss, optimizer=optimizer)
@@ -268,7 +268,7 @@ class ModelGeneration(object):
     #
 
     # Функция, запускающая все остальные
-    def create_prediction_model(self, test_size=0.333, drop_out=0.2, activation='linear', optimizer='rmsprop',
+    def create_prediction_model(self, test_size=0.333, drop_out=0.2, activation='linear', optimizer='adam',
                                 epochs_num=20, visual_mode='png', plot_bat=False, plot_weather=False):
         if self.x_train is None:
             print("\tРазбиение датасета")

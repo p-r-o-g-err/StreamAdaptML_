@@ -9,6 +9,7 @@ from app.modules import DataHandler, DataDriftDetector, DataPreprocessing
 from river import drift
 import os
 import threading
+from threading import Thread
 import datetime
 from app.modules.MLModelTrainerTest import ModelGeneration
 
@@ -211,7 +212,6 @@ def check_model():
 
 new_data = {}
 
-from threading import Thread
 
 background_thread = None
 stop_event = None
@@ -251,7 +251,7 @@ def background_work():
 
                 # Если сдвиг обнаружен
                 if is_drift:
-                    # Обучить модель, используя метод training_method
+                    # Обучить модель, используя метод training_method_with_data_shift
                     if training_method_with_data_shift == 'online_learning':
                         obj_model.train_online(dataset)
                     elif training_method_with_data_shift == 'mini_batch_online_learning':
@@ -266,7 +266,7 @@ def background_work():
                         print('Передан неверный метод обучения модели при наличии сдвига данных')
                 # Иначе
                 else:
-                    # Обучить модель, используя метод training_method_with_data_shift
+                    # Обучить модель, используя метод training_method
                     if training_method == 'online_learning':
                         obj_model.train_online(dataset)
                     elif training_method == 'mini_batch_online_learning':
@@ -275,7 +275,7 @@ def background_work():
                     #     obj_model.train_transfer_learning(dataset)
                     else:
                         print('Передан неверный метод обучения модели при отсутствии сдвига данных')
-                # obj_model.save_model()
+                obj_model.save_model()
 
                 # Получаем фактические и предсказанные значения для окна S
                 predicted_temp = DataPreprocessing.denormalize_temp(obj_model.predicted)
@@ -388,13 +388,20 @@ def run_drift_detection():
         return is_drift
 
 
+@app.route('/first_run')
+def get_first_run_status():
+    result = learning_parameters['first_run_status']
+    learning_parameters['first_run_status'] = False
+    return jsonify(first_run_status=result)
+
+
 @app.route('/training_data')
 def get_training_data():
     """
     Отправка информации об обучении:
         + время обучения
-        - значение функции потерь
-        - точность
+        + значение функции потерь
+        + точность
         - изменение точности за время обучения
     :return:
     """
@@ -445,13 +452,6 @@ def get_training_data():
         # Отправляем данные и индексы сдвига на клиентскую сторону
         result = jsonify(training_time=training_time, mse=mse, r2=r2, loss=loss)
         return result
-
-
-@app.route('/first_run')
-def get_first_run_status():
-    result = learning_parameters['first_run_status']
-    learning_parameters['first_run_status'] = False
-    return jsonify(first_run_status=result)
 
 
 @app.route('/predictions_data')

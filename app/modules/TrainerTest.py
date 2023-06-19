@@ -1,7 +1,10 @@
+import os
+
 from river import drift
 
 from MLModelTrainerTest import *
 import DataHandler
+from app import app
 from app.modules import DataDriftDetector
 
 learning_parameters = {
@@ -22,7 +25,8 @@ def updateData(window_size):
     :return: None
     """
     # Определяем начальное время
-    start_date = datetime.datetime.now() - datetime.timedelta(days=10)
+    start_date = datetime.datetime.strptime("2023-06-06 08:20:00", "%Y-%m-%d %H:%M:%S")
+    # start_date = datetime.datetime.now() - datetime.timedelta(days=10)
     # Считываем датасет
     new_dataset = DataHandler.get_dataset_for_model(start_date=start_date,
                                                     audience_name=None,
@@ -116,8 +120,69 @@ def run_drift_detection():
         # Вернуть флаг наличия сдвига
         return is_drift
 
+def aaa():
+    models_files = os.listdir(app.config['MODELS_FOLDER'])
+    filename0 = os.path.join(app.config['MODELS_FOLDER'], models_files[0])
+    filename1 = os.path.join(app.config['MODELS_FOLDER'], models_files[1])
+    filename2 = os.path.join(app.config['MODELS_FOLDER'], models_files[2])
+    loaded_model0 = keras.models.load_model(filename0)
+    loaded_model1 = keras.models.load_model(filename1)
+    loaded_model2 = keras.models.load_model(filename2)
+    # Инициализация моделей
+    obj_model0 = ModelGeneration(model=loaded_model0)
+    obj_model1 = ModelGeneration(model=loaded_model1)
+    obj_model2 = ModelGeneration(model=loaded_model2)
+
+    # Получение датасета
+    datasets = []
+
+    start_date = datetime.datetime.strptime("2023-06-06 08:10:00", "%Y-%m-%d %H:%M:%S")
+    end_date = datetime.datetime.strptime("2023-06-07 08:10:00", "%Y-%m-%d %H:%M:%S")
+    datasets.append(DataHandler.get_dataset_for_model(audience_name=None,
+                                                    normalize=False))
+    datasets.append(DataHandler.get_dataset_for_model(start_date=start_date,
+                                                    audience_name=None,
+                                                    normalize=False))
+    datasets.append(DataHandler.get_dataset_for_model(start_date=start_date,
+                                                      end_date=end_date,
+                                                      audience_name=None,
+                                                      normalize=False))
+    counter = 0
+    for new_dataset in datasets:
+        new_dataset = new_dataset.reset_index()
+        # Определяем столбец температуры
+        temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
+        # Переименовываем столбец
+        new_dataset.rename(columns={temp_column_name: 'temp_audience'}, inplace=True)
+        new_dataset = new_dataset.set_index('date_time')
+        new_dataset = DataPreprocessing.normalize_dataset(new_dataset)
+
+        x_train, y_train, x_test, y_test, index_train, index_test = \
+            get_train_test(new_dataset, 'temp_audience', mode='train_online')
+
+        # Прогнозирование значений
+        predicted_test = obj_model0.current_model.predict(x_test)
+        # Вычисление точности (MSE, R2)
+        obj_model0.compute_mse(y_test, predicted_test.flatten())
+        obj_model0.compute_r_squared(y_test, predicted_test.flatten())
+
+        predicted_test = obj_model1.current_model.predict(x_test)
+        obj_model1.compute_mse(y_test, predicted_test.flatten())
+        obj_model1.compute_r_squared(y_test, predicted_test.flatten())
+
+        predicted_test = obj_model2.current_model.predict(x_test)
+        obj_model2.compute_mse(y_test, predicted_test.flatten())
+        obj_model2.compute_r_squared(y_test, predicted_test.flatten())
+        print('Датасет:', counter)
+        print('Модель 0: mse =', obj_model0.mse, ' r2 =', obj_model0.r2)
+        print('Модель 1: mse =', obj_model1.mse, ' r2 =', obj_model1.r2)
+        print('Модель 2: mse =', obj_model2.mse, ' r2 =', obj_model2.r2)
+        counter += 1
+
 
 if __name__ == "__main__":
+    aaa()
+    pass
     # # Считывание модели
     # current_model = DataHandler.read_model()
     # # Инициализация модели

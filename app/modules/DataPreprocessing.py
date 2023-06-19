@@ -34,7 +34,6 @@ def normalize_dataset(dataset):
         pickle.dump(scaler, file)
     return pd.DataFrame(transformed, columns=dataset.columns, index=dataset.index)
 
-from sklearn import preprocessing
 
 
 def denormalize_dataset(normalized_dataset):
@@ -70,7 +69,7 @@ def denormalize_temp(normalized_dataset):
     denormalized = denormalize_dataset(new_dataset)
     return denormalized['temp_audience']
 
-# Удалить столбцы с заданным процентом пропусков
+
 def del_cols_with_skips(data=None, cols=None, percentage_skips=50):
     """
     Удаляет столбцы с заданным процентом пропусков.
@@ -84,7 +83,7 @@ def del_cols_with_skips(data=None, cols=None, percentage_skips=50):
     elif not isinstance(cols, list):
         raise ValueError("Неправильный тип для параметра 'cols'. Ожидалось None или список.")
     for col in cols:
-        # Вычисляем процент пропусков в столбце
+        # Вычислить процент пропусков в столбце
         pct_missing = round(np.mean(data[col].isnull()) * 100)
         # print('{} - {}%'.format(col, round(pct_missing*100)))
         if pct_missing > percentage_skips:
