@@ -1,7 +1,5 @@
 import os
-
 from river import drift
-
 from MLModelTrainerTest import *
 import DataHandler
 from app import app
@@ -180,24 +178,26 @@ def aaa():
         counter += 1
 
 
-if __name__ == "__main__":
-    aaa()
-    pass
-    # # Считывание модели
-    # current_model = DataHandler.read_model()
-    # # Инициализация модели
-    # obj_model = ModelGeneration(model=current_model)
-    # new_dataset = DataHandler.get_dataset_for_model(audience_name=None, normalize=False)
-    # # Переименовываем столбец
-    # temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
-    # new_dataset.rename(columns={temp_column_name: 'temp_audience'}, inplace=True)
-    #
-    # dataset = DataPreprocessing.normalize_dataset(new_dataset)
-    #
-    # obj_model.train_from_scratch(new_dataset)
-    # obj_model.save_model()
-    # print()
+def bbb():
+    # Считывание модели
+    current_model = DataHandler.read_model()
+    # Инициализация модели
+    obj_model = ModelGeneration(model=current_model)
+    new_dataset = DataHandler.get_dataset_for_model(audience_name=None, normalize=False)
+    # Переименовываем столбец
+    temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
+    new_dataset.rename(columns={temp_column_name: 'temp_audience'}, inplace=True)
 
+    # dataset = DataPreprocessing.normalize_dataset(new_dataset)
+
+    obj_model.train_from_scratch(new_dataset)
+    obj_model.save_model()
+    print()
+
+
+if __name__ == "__main__":
+    # aaa()
+    # bbb()
 
     # Считывание настроек обучения
     settings = DataHandler.read_settings()
@@ -231,42 +231,43 @@ if __name__ == "__main__":
                 # obj_model.train_from_scratch(dataset)
                 # obj_model.train_online(dataset)
                 # obj_model.train_mini_batch_online(dataset)
-                #obj_model.train_transfer_learning(dataset)
+                # obj_model.train_transfer_learning(dataset)
+                obj_model.train_autofit(dataset)
 
                 # Если сдвиг обнаружен
-                if is_drift:
-                    # Обучить модель, используя метод training_method
-                    if training_method_with_data_shift == 'online_learning':
-                        obj_model.train_online(dataset)
-                    elif training_method_with_data_shift == 'mini_batch_online_learning':
-                        obj_model.train_mini_batch_online(dataset)
-                    elif training_method_with_data_shift == 'learning_from_scratch':
-                        obj_model.train_from_scratch(dataset)
-                    # elif training_method_with_data_shift == 'transfer_learning':
-                    #     obj_model.train_transfer_learning(dataset)
-                    # elif training_method_with_data_shift == 'autofit':
-                    #     obj_model.train_autofit(dataset)
-                    else:
-                        print('Передан неверный метод обучения модели при наличии сдвига данных')
-                # Иначе
-                else:
-                    # Обучить модель, используя метод training_method_with_data_shift
-                    if training_method == 'online_learning':
-                        obj_model.train_online(dataset)
-                    elif training_method == 'mini_batch_online_learning':
-                        obj_model.train_mini_batch_online(dataset)
-                    # elif training_method == 'transfer_learning':
-                    #     obj_model.train_transfer_learning(dataset)
-                    else:
-                        print('Передан неверный метод обучения модели при отсутствии сдвига данных')
-
-                predicted_temp = DataPreprocessing.denormalize_temp(obj_model.predicted)
-                true_temp = DataPreprocessing.denormalize_dataset(dataset)['temp_audience']
-                # Получаем значения метрик MSE и R2 для окна S
-                mse = obj_model.mse
-                r2 = obj_model.r2
-
-                s = 3
+                # if is_drift:
+                #     # Обучить модель, используя метод training_method
+                #     if training_method_with_data_shift == 'online_learning':
+                #         obj_model.train_online(dataset)
+                #     elif training_method_with_data_shift == 'mini_batch_online_learning':
+                #         obj_model.train_mini_batch_online(dataset)
+                #     elif training_method_with_data_shift == 'learning_from_scratch':
+                #         obj_model.train_from_scratch(dataset)
+                #     elif training_method_with_data_shift == 'transfer_learning':
+                #         obj_model.train_transfer_learning(dataset)
+                #     elif training_method_with_data_shift == 'autofit':
+                #         obj_model.train_autofit(dataset)
+                #     else:
+                #         print('Передан неверный метод обучения модели при наличии сдвига данных')
+                # # Иначе
+                # else:
+                #     # Обучить модель, используя метод training_method_with_data_shift
+                #     if training_method == 'online_learning':
+                #         obj_model.train_online(dataset)
+                #     elif training_method == 'mini_batch_online_learning':
+                #         obj_model.train_mini_batch_online(dataset)
+                #     elif training_method == 'transfer_learning':
+                #         obj_model.train_transfer_learning(dataset)
+                #     else:
+                #         print('Передан неверный метод обучения модели при отсутствии сдвига данных')
+                #
+                # predicted_temp = DataPreprocessing.denormalize_temp(obj_model.predicted)
+                # true_temp = DataPreprocessing.denormalize_dataset(dataset)['temp_audience']
+                # # Получаем значения метрик MSE и R2 для окна S
+                # mse = obj_model.mse
+                # r2 = obj_model.r2
+                #
+                # s = 3
 
 
             # # Подготовка актуального датасета для модели

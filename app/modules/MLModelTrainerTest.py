@@ -7,6 +7,8 @@
 import pandas as pd
 import numpy as np
 import keras.models
+
+from keras import optimizers
 from keras import backend as K
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
@@ -61,21 +63,24 @@ def compile_model(model, loss='mse', optimizer='adam'):  # adam
 
 def get_train_test(dataset, target_column, test_size=0.333, mode='train_from_scratch'):
     if mode == 'train_from_scratch':
-        x_train, y_train, x_test, y_test, index_train, index_test = DataPreprocessing.get_train_test_for_train_from_scratch(
-            dataset, target_column, test_size)
+        x_train, y_train, x_test, y_test, index_train, index_test = \
+            DataPreprocessing.get_train_test_for_train_from_scratch(dataset, target_column, test_size)
         return x_train, y_train, x_test, y_test, index_train, index_test
     elif mode == 'train_online':
-        x_train, y_train, x_test, y_test, index_train, index_test = DataPreprocessing.get_train_test_for_online_learning(
-            dataset, target_column)
+        x_train, y_train, x_test, y_test, index_train, index_test = \
+            DataPreprocessing.get_train_test_for_online_learning(dataset, target_column)
         return x_train, y_train, x_test, y_test, index_train, index_test
     elif mode == 'train_mini_batch_online':
-        x_train, y_train, x_test, y_test, index_train, index_test = DataPreprocessing.get_train_test_for_online_learning(
-            dataset, target_column)
+        x_train, y_train, x_test, y_test, index_train, index_test = \
+            DataPreprocessing.get_train_test_for_online_learning(dataset, target_column)
         return x_train, y_train, x_test, y_test, index_train, index_test
     elif mode == 'train_transfer_learning':
-        return None
+        x_train, y_train, x_test, y_test, index_train, index_test = \
+            DataPreprocessing.get_train_test_for_transfer_learning(dataset, target_column, test_size)
+        return x_train, y_train, x_test, y_test, index_train, index_test
     else:
         raise 'Передан неизвестный режим в get_train_test()'
+
 
 class ModelGeneration(object):
     current_model = None  # Текущая модель
@@ -84,6 +89,7 @@ class ModelGeneration(object):
     mse = None
     r2 = None
     history = None
+
     def __init__(self, model=None):
         """
         Инициализирует объект класса ModelGeneration.
@@ -108,16 +114,17 @@ class ModelGeneration(object):
         """
         DataHandler.save_model(self.current_model)
 
-    def train_online(self, dataset, epochs=1):  # validation_split=0.1
+    def train_online(self, dataset, epochs=1):
         """
         Метод онлайн-обучения (online learning).
         Обучает модель на потоковых данных путем последовательного обновления весов модели после каждого примера.
         :param dataset: входной датасет.
         :param epochs: количество эпох (по умолчанию 1).
         """
+        print('Обучение модели (online learning)')
+
         x_train, y_train, x_test, y_test, index_train, index_test = \
             get_train_test(dataset, self.target_column, mode='train_online')
-
         start = datetime.datetime.now()
         for epoch in range(epochs):
             for i in range(len(x_train)):
@@ -147,16 +154,15 @@ class ModelGeneration(object):
         :param batch_size: размер пакета для обновления весов (по умолчанию 32).
         :param epochs: количество эпох (по умолчанию 1).
         """
+        print('Обучение модели (mini-batch online learning)')
+
         x_train, y_train, x_test, y_test, index_train, index_test = \
             get_train_test(dataset, self.target_column, mode='train_mini_batch_online')
-
         start = datetime.datetime.now()
         for epoch in range(epochs):
             for i in range(0, len(x_train), batch_size):
                 x_batch = x_train[i:i + batch_size]
                 y_batch = y_train[i:i + batch_size]
-                # x = np.array([x])
-                # y = np.array([y])
                 self.history = self.current_model.train_on_batch(x_batch, y_batch)
             print(f"Эпоха {epoch + 1}/{epochs} - Обучение завершено")
         print('Время обучения : {}'.format(datetime.datetime.now() - start))
@@ -178,10 +184,13 @@ class ModelGeneration(object):
         :param dataset: входной датасет.
         :param batch_size: размер пакета для обновления весов (по умолчанию 32).
         :param epochs: количество эпох (по умолчанию 10).
-        :param test_size: доля тестовых данных в обучении (по умолчанию 0.333).
+        :param test_size: доля тестовых данных (по умолчанию 0.333).
         """
+        print('Обучение модели (learning from scratch)')
+
         x_train, y_train, x_test, y_test, index_train, index_test = \
             get_train_test(dataset, self.target_column, test_size, mode='train_from_scratch')
+
         start = datetime.datetime.now()
         self.history = self.current_model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1)
         print('Время обучения : {}'.format(datetime.datetime.now() - start))
@@ -199,94 +208,114 @@ class ModelGeneration(object):
         self.compute_mse(y_test, predicted_test.flatten())
         self.compute_r_squared(y_test, predicted_test.flatten())
 
-        #history.history['loss']
-
-    def train_transfer_learning(self, dataset, batch_size=32, epochs=10, test_size=0.333):
+    def train_transfer_learning(self, dataset, batch_size=32, epochs=10, test_size=0.2):
         """
         Метод трансферного обучения (transfer learning).
         Обучает модель на обучающем наборе данных, используя предварительно обученные веса модели.
         :param dataset: входной датасет.
         :param batch_size: размер пакета для обновления весов (по умолчанию 32).
         :param epochs: количество эпох (по умолчанию 10).
+        :param test_size: доля тестовых данных (по умолчанию 0.2).
         """
-        # Заморозка весов предварительно обученной модели
-        for layer in self.current_model.layers:
-            layer.trainable = False
+        print('Обучение модели (transfer learning)')
 
-        # Компиляция модели после заморозки весов
-        self.current_model.compile(loss='mse', optimizer='adam')
-
-        start = datetime.datetime.now()
-
-        x_train, y_train, x_test, y_test = \
+        x_train, y_train, x_test, y_test, index_train, index_test = \
             get_train_test(dataset, self.target_column, test_size, mode='train_transfer_learning')
 
         # Обучение модели
+        start = datetime.datetime.now()
+        # Заморозка слоев LSTM и Dropout
+        for layer in self.current_model.layers[:-1]:
+            layer.trainable = False
+        # Компиляция модели после заморозки слоев
+        self.current_model.compile(loss='mse', optimizer='adam')
+        print('Обучение после заморозки слоев')
         self.current_model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1)
+
+        # Разморозка и дообучение некоторых слоев модели
+        for layer in self.current_model.layers[:-1]:
+            layer.trainable = True
+        # Компиляция модели после разморозки c низким learning_rate
+        self.current_model.compile(loss='mse', optimizer=optimizers.Adam(learning_rate=0.0001))  # Низкий learning rate
+        # Дообучение модели на новых данных
+        print('Дообучение после разморозки слоев')
+        self.history = self.current_model.fit(x_test, y_test, batch_size=batch_size, epochs=epochs, validation_split=0.1)
         print('Время обучения : {}'.format(datetime.datetime.now() - start))
 
-    def train_autofit(self, dataset):
-        # Инициализировать модели MS = {M1, M2, M3, M4}
-        # Получить значение функции потерь для каждой модели
-        # Определить модель с минимальным значением функции потерь
-        # Заменить веса исходной модели M на веса модели с минимальным значением функции потерь
-        pass
+        # Компиляция модели после обучения с целью восстановления исходной скорости обучения
+        self.current_model.compile(loss='mse', optimizer='adam')
 
-    def compute_mse(self, y_test, y_pred):
-        self.mse = float(mean_squared_error(y_test, y_pred))
+        # Прогнозирование значений
+        predicted_train = self.current_model.predict(x_train)
+        predicted_test = self.current_model.predict(x_test)
+
+        # Сохранение предсказаний для графика
+        a1 = pd.DataFrame(index=index_train, data=predicted_train, columns=[self.target_column])
+        a2 = pd.DataFrame(index=index_test, data=predicted_test, columns=[self.target_column])
+        self.predicted = pd.concat([a1, a2])
+
+        # Вычисление точности (MSE, R2)
+        self.compute_mse(y_test, predicted_test.flatten())
+        self.compute_r_squared(y_test, predicted_test.flatten())
+
+    def train_autofit(self, dataset):
+        """
+        Метод автоподбора (алгоритм адаптации).
+        Инициализирует модели Ms = {M1, M2, M3, M4}.
+        Получает значение функции потерь для каждой модели.
+        Определяет модель с минимальным значением функции потерь.
+        Заменяет параметры исходной модели M на параметры модели с минимальным значением функции потерь.
+        :param dataset: входной датасет.
+        """
+        print('Обучение модели (adaptive algorithm)')
+        # Создание копий модели
+        model_1 = ModelGeneration(self.current_model)
+        model_2 = ModelGeneration(self.current_model)
+        model_3 = ModelGeneration(self.current_model)
+        model_4 = ModelGeneration(self.current_model)
+
+        # Обучение моделей на разных подходах
+        model_1.train_online(dataset)
+        model_2.train_mini_batch_online(dataset)
+        model_3.train_from_scratch(dataset)
+        model_4.train_transfer_learning(dataset)
+
+        # Выбор модели с наименьшим значением функции потерь
+        min_mse = min(model_1.mse, model_2.mse, model_3.mse, model_4.mse)
+        if min_mse == model_1.mse:
+            self.copy_model_data(model_1)
+        elif min_mse == model_2.mse:
+            self.copy_model_data(model_2)
+        elif min_mse == model_3.mse:
+            self.copy_model_data(model_3)
+        elif min_mse == model_4.mse:
+            self.copy_model_data(model_4)
+
+    def compute_mse(self, y_true, y_pred):
+        """
+        Вычисляет значение метрики MSE.
+        :param y_true: истинные значения целевого столбца.
+        :param y_pred: предсказанные значения целевого столбца.
+        """
+        self.mse = float(mean_squared_error(y_true, y_pred))
         print('\tТест MSE: %.3f' % self.mse)
 
     def compute_r_squared(self, y_true, y_pred):
+        """
+        Вычисляет значение метрики MSE.
+        :param y_true: истинные значения целевого столбца.
+        :param y_pred: предсказанные значения целевого столбца.
+        """
         self.r2 = float(r2_score(y_true, y_pred))
         print('\tТест R2: %.3f' % self.r2)
-        # numerator = np.sum(np.square(y_true - y_pred))
-        # denominator = np.sum(np.square(y_true - y_mean))
-        # result = 1 - numerator/denominator
 
-
-    def visual_learning(self):
-        if self.current_model is None:
-            print('Не инициализирована модель.')
-        else:
-            Visualization.plot_model(self.current_model)
-
-
-    # def plot_predicted(self, renderer='browser', plot_bat=False, plot_weather=False):
-    #     if self.y_test is None:
-    #         print('Отсутствует тестовая выборка (Запустите get_train_test())')
-    #     elif self.predicted is None:
-    #         print('Предсказания отсутствуют (Запустите model_predict())')
-    #     else:
-    #         temp_bat_col = None
-    #         temp_outside_col = None
-    #         if plot_bat:
-    #             temp_bat_col = self.input_dataset[self.input_dataset.filter(regex='bat_temp').columns[0]]
-    #         if plot_weather:
-    #             temp_outside_col = self.input_dataset['temp']
-    #         Visualization.plot_temps_series_predicted(self.test_index, self.y_test, self.predicted.flatten(), renderer,
-    #                                                   temp_bat_col, temp_outside_col)
-    #
-
-    # Функция, запускающая все остальные
-    def create_prediction_model(self, test_size=0.333, drop_out=0.2, activation='linear', optimizer='adam',
-                                epochs_num=20, visual_mode='png', plot_bat=False, plot_weather=False):
-        if self.x_train is None:
-            print("\tРазбиение датасета")
-            self.get_train_test(test_size)
-        print(
-            f"\tx_train: {self.x_train.shape}\n\ty_train: {self.y_train.shape}\n\tx_test: {self.x_test.shape}\n\ty_test: {self.y_test.shape}")
-        if self.current_model is None:
-            print("Создание модели")
-            self.current_model = create_model(self.x_train, drop_out, activation, optimizer=optimizer)
-        print("Тренировка модели")
-        self.fit_model(epochs_num)
-        print("Отображение результатов")
-        self.visual_learning()
-        print("Прогнозирование значений")
-        self.model_predict()
-        print("Прогнозирование завершено:")
-        self.print_error()
-        if visual_mode not in ['none', 'png', 'browser']:
-            print('Передан неизвестный режим отображения. Ожидалось одно из следующих значений: none, png, browser')
-        else:
-            self.plot_predicted(visual_mode, plot_bat=plot_bat, plot_weather=plot_weather)
+    def copy_model_data(self, copied_model):
+        """
+        Присваивает полям текущей модели значения полей копируемой модели.
+        :param copied_model: Копируемая модель.
+        """
+        self.current_model = copied_model.current_model
+        self.predicted = copied_model.predicted
+        self.mse = copied_model.mse
+        self.r2 = copied_model.r2
+        self.history = copied_model.history

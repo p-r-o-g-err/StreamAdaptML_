@@ -258,10 +258,10 @@ def background_work():
                         obj_model.train_mini_batch_online(dataset)
                     elif training_method_with_data_shift == 'learning_from_scratch':
                         obj_model.train_from_scratch(dataset)
-                    # elif training_method_with_data_shift == 'transfer_learning':
-                    #     obj_model.train_transfer_learning(dataset)
-                    # elif training_method_with_data_shift == 'autofit':
-                    #     obj_model.train_autofit(dataset)
+                    elif training_method_with_data_shift == 'transfer_learning':
+                        obj_model.train_transfer_learning(dataset)
+                    elif training_method_with_data_shift == 'autofit':
+                        obj_model.train_autofit(dataset)
                     else:
                         print('Передан неверный метод обучения модели при наличии сдвига данных')
                 # Иначе
@@ -271,8 +271,8 @@ def background_work():
                         obj_model.train_online(dataset)
                     elif training_method == 'mini_batch_online_learning':
                         obj_model.train_mini_batch_online(dataset)
-                    # elif training_method == 'transfer_learning':
-                    #     obj_model.train_transfer_learning(dataset)
+                    elif training_method == 'transfer_learning':
+                        obj_model.train_transfer_learning(dataset)
                     else:
                         print('Передан неверный метод обучения модели при отсутствии сдвига данных')
                 obj_model.save_model()

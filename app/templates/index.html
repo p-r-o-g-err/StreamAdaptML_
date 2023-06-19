@@ -35,7 +35,6 @@
 	</div>
 	{% endif %}
 
-
 	<br>
     <form class="form" id="form-settings" action="{{url_for('save_settings')}}" method="post" enctype="multipart/form-data">
 		<div class="setting-container" id="data-shift-detection-container">
@@ -89,7 +88,7 @@
 		<div class="setting-container" id="window-size-container">
 			<label class="setting-title">Размер окна для дообучения модели</label>
 			<div class="window-size-input-container">
-				<input oninput="updateTextInput(this.value);" type="range" class="browser-default" name="window-size" id="window-size" min="1" max="144" step="1" value="{{ window_size }}">
+				<input oninput="updateTextInput(this.value);" type="range" class="browser-default" name="window-size" id="window-size" min="6" max="144" step="1" value="{{ window_size }}">
 				<output name="window-size-value" id="window-size-value" for="window-size">{{ window_size }}</output>
 			</div>
 		</div>
@@ -140,19 +139,6 @@
 		// Обработка кнопки сохранения модели
 		$(document).ready(function() {
 			$('#save-model-btn').click(function(e) {
-<!--					$.post('/upload_model', function(data) {-->
-<!--						console.log(data)-->
-<!--						if (data.hasOwnProperty('message')) {-->
-<!--							M.toast({html: data.message});-->
-<!--						} else {-->
-<!--							console.log('Скачать модель')-->
-<!--						}-->
-<!--					}).fail(function() {-->
-<!--						M.toast({html: 'Ошибка при выполнении запроса'});-->
-<!--					    // Перезагрузить страницу-->
-<!--						//e.preventDefault();-->
-<!--                    	location.reload();-->
-<!--					});-->
 				$('#save-model-btn').blur();
 			});
 		});
@@ -165,32 +151,17 @@
 		const dataShiftDetectionSelect = document.querySelector("#data-shift-detection-container select");
 		const trainingMethodSelect = document.querySelector("#training-method-container select");
 		const trainingMethodWithDataShiftSelect = document.querySelector("#training-method-with-data-shift-container select");
+		const windowSizeInput = document.getElementById("window-size");
+
 
   		autosettingsButton.addEventListener("click", function() {
     		dataShiftDetectionSelect.selectedIndex = 0;
 			trainingMethodSelect.selectedIndex = 1;
 			trainingMethodWithDataShiftSelect.selectedIndex = 4;
+			windowSizeInput.value = 60;
+			updateTextInput(60);
+			autosettingsButton.blur();
     	});
-
-
-<!--		document.forms.load_form.addEventListener('submit', function(event) {-->
-<!--			// Предотвратить отправку формы по умолчанию-->
-<!--			event.preventDefault();-->
-<!--		 	M.toast({html: "Я здесь"});-->
-<!--			// Проверить запущено ли обучение-->
-<!--			$.get('/check_status', function(data) {-->
-<!--				// Если обучение запущено, то вывести сообщение-->
-<!--				if (data == "Фоновая работа запущена") {-->
-<!--					console.log("Для загрузки модели необходимо остановить обучение");-->
-<!--					M.toast({html: "Для загрузки модели необходимо остановить обучение"});-->
-<!--				} else {-->
-<!--					// Отправить форму, если обучение не запущено-->
-<!--					M.toast({html: "фываыфа"});-->
-<!--					document.forms.load_form.submit();-->
-<!--				}-->
-<!--			});-->
-<!--		});-->
-
 
     	// Обработка клика кнопки загрузки модели
     	document.getElementById("load-model-btn").addEventListener("change", function() {

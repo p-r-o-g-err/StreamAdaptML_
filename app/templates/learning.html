@@ -13,23 +13,10 @@
 				Остановить
 				<i class="material-icons right">stop</i>
 		</button>
-<!--		<form class="form" action="{{url_for('start_learning')}}" method="post" enctype="multipart/form-data">-->
-<!--			<button id="start-learning" type="submit" class="btn waves-effect waves-light">-->
-<!--				Запустить-->
-<!--				<i class="material-icons right">play_arrow</i>-->
-<!--			</button>-->
-<!--		</form>-->
-<!--		<form class="form" action="{{url_for('stop_learning')}}" method="post" enctype="multipart/form-data">-->
-<!--			<button id="stop-learning" type="submit" class="btn waves-effect waves-light">-->
-<!--				Остановить-->
-<!--				<i class="material-icons right">stop</i>-->
-<!--			</button>-->
-<!--		</form>-->
 	</div>
 
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 	<script>
-
 		$(document).ready(function() {
 			$('#start-learning').click(function() {
 				// Проверить загружена ли модель
@@ -68,8 +55,6 @@
             			managementWork();
             			managementWork2();
             			managementWork3();
-<!--            			resetParameters();-->
-<!--            			resetParameters2();-->
 					} else {
 					    M.toast({html: "Фоновая работа уже остановлена"});
 					}
@@ -141,25 +126,3 @@
 	</div>
 
 {% endblock %}
-
-<!-- Код элемента TabControl -->
-<!--	<div class="container tab-container">-->
-<!--		<div class="row">-->
-<!--			<div class="col s12">-->
-<!--				<ul class="tabs">-->
-<!--					<li class="tab col s3"><a href="#test1">Производительность модели</a></li>-->
-<!--					<li class="tab col s3"><a href="#test2">Прогнозы модели</a></li>-->
-<!--					<li class="tab col s3"><a href="#test3">Потоковые данные</a></li>-->
-<!--				</ul>-->
-<!--			</div>-->
-<!--			<div id="test1" class="col s12">Test 1</div>-->
-<!--			<div id="test2" class="col s12">Test 2</div>-->
-<!--			<div id="test3" class="col s12">Test 3</div>-->
-<!--		</div>-->
-<!--	</div>-->
-<!--	<script>-->
-<!--		document.addEventListener('DOMContentLoaded', function() {-->
-<!--			var tabs = document.querySelectorAll('.tabs');-->
-<!--			var instance = M.Tabs.init(tabs);-->
-<!--		});-->
-<!--	</script>-->

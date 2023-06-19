@@ -1,6 +1,6 @@
 {
     "data_shift_detection_method": "ADWIN",
     "training_method": "online_learning",
-    "training_method_with_data_shift": "mini_batch_online_learning",
-    "window_size": 24
+    "training_method_with_data_shift": "transfer_learning",
+    "window_size": 60
 }

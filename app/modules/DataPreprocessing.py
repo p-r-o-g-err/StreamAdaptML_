@@ -196,6 +196,7 @@ def get_train_test_for_train_from_scratch(dataset, target_column, test_size=0.33
     y_test = y_test.values
     return x_train, y_train, x_test, y_test, train_index, test_index
 
+
 def get_train_test_for_online_learning(dataset, target_column):
     index_y = list(dataset.columns).index(target_column)
     indexes_x = [i for i in range(len(dataset.columns)) if i != index_y]
@@ -209,4 +210,19 @@ def get_train_test_for_online_learning(dataset, target_column):
     y_test = y.values
     return x_train, y_train, x_test, y_test, train_index, test_index
 
+
+def get_train_test_for_transfer_learning(dataset, target_column, test_size=0.2):
+    index_y = list(dataset.columns).index(target_column)
+    indexes_x = [i for i in range(len(dataset.columns)) if i != index_y]
+    y = dataset[dataset.columns[index_y]]
+    x = dataset[dataset.columns[indexes_x]]
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, shuffle=False, stratify=None,
+                                                        random_state=None)
+    train_index = y_train.index
+    test_index = y_test.index
+    x_train = x_train.values
+    y_train = y_train.values
+    x_test = x_test.values
+    y_test = y_test.values
+    return x_train, y_train, x_test, y_test, train_index, test_index
 # endregion
