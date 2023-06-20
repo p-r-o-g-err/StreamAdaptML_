@@ -313,10 +313,11 @@ def save_model(model: Model):
     if len(models_files) > 0:
         # Формируем полное имя модели
         filename = os.path.join(app.config['MODELS_FOLDER'], models_files[0])
-        model.save(filename)
-        print(f"Модель \'{filename}\' успешно сохранена")
     else:
-        print("Ошибка сохранения модели (модель ранее не была загружена)")
+        print("Модель ранее не была загружена")
+        filename = os.path.join(app.config['MODELS_FOLDER'], 'temp_prediction_model1.keras')
+    model.save(filename)
+    print(f"Модель \'{filename}\' успешно сохранена")
 
 
 def upload_model():
