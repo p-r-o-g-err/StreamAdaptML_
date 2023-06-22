@@ -220,6 +220,8 @@ def get_merged_sensor_weather_data_update(dataset, fill_in_the_gaps=True, loggin
     concat_dataset = pd.concat([dataset, new_dataset], axis=0)
     number_new_rows = len(concat_dataset) - len(dataset)
     return concat_dataset, number_new_rows
+
+
 # endregion
 
 # endregion
