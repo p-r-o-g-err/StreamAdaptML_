@@ -1,5 +1,7 @@
-var ctx3 = null;
-var chart3 = null;
+var ctx3 = null; // Переменная, содержащая контекст для рисования графика
+var chart3 = null; // Переменная, содержащая объект графика
+
+// Функция, создающая график
 function createChart3() {
     if (chart3) {
         chart3.destroy(); // Уничтожить существующий график
@@ -47,7 +49,7 @@ function createChart3() {
     });
 }
 
-// Отображение данных на графике
+// Функция, обновляющая график
 function updateChart3(true_temp, pred_temp) {
     for (let i = 0; i < true_temp.length; i++) {
         const item = true_temp[i];
@@ -63,7 +65,7 @@ function updateChart3(true_temp, pred_temp) {
     chart3.update();
 }
 
-// Загрузка и отображение исходных данных
+// Функция, выполняющая AJAX-запрос на получение данных и обновляющая график
 function fetchData3() {
     // Выполнить AJAX запрос на маршрут Flask
     $.ajax({
@@ -72,9 +74,9 @@ function fetchData3() {
         success: function(response) {
             var true_temp = response.true_temp;
             var pred_temp = response.pred_temp;
-            // console.log('fetchData3' + ' true_temp: ' + true_temp + ' pred_temp: ' + pred_temp)
             updateChart3(true_temp, pred_temp);
-            saveChartState3(); // Сохранить состояние графика после обновления данных
+            // Сохранить состояние графика после обновления данных
+            saveChartState3();
         },
         error: function(error) {
             console.log(error);
@@ -82,11 +84,11 @@ function fetchData3() {
     });
 }
 
+// Функция, инициирующая запуск и остановку получения обновлений для графика и параметров
 function managementWork3() {
     $.get('/check_status', function(data) {
         // Если обучение запущено
         if (data === 'Фоновая работа запущена') {
-            // console.log('Работа запущена')
             // Установить обновление данных и графика каждые n секунд
             interval = setInterval(function() {
                 fetchData3();
@@ -95,7 +97,6 @@ function managementWork3() {
         }
         // Иначе остановить обновление
         else {
-            // console.log('Работа остановлена')
             interval = localStorage.getItem("predictionsDataUpdateInterval");
             if (interval != null) {
                 clearInterval(interval);
@@ -106,6 +107,7 @@ function managementWork3() {
     });
 }
 
+// Функция, восстанавливающая состояние графика
 function restoreChartState3() {
     // Получить сохраненные данные графика из локального хранилища
     const chartData = localStorage.getItem('chartData3');
@@ -119,6 +121,7 @@ function restoreChartState3() {
     }
 }
 
+// Функция, сохраняющая состояние графика
 function saveChartState3() {
     if (chart3) {
         // Сохранить данные графика в локальное хранилище
@@ -127,7 +130,7 @@ function saveChartState3() {
     }
 }
 
-// При загрузке страницы восстанавливаем состояния
+// При загрузке страницы создаем график, восстанавливаем состояние графика и параметров, обновляем данные
 $(document).ready( function () {
     // Создание графика
     createChart3();

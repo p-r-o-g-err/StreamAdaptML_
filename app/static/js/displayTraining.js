@@ -1,5 +1,7 @@
-var ctx2 = null;
-var chart2 = null;
+var ctx2 = null; // Переменная, содержащая контекст для рисования графика
+var chart2 = null;  // Переменная, содержащая объект графика
+
+// Функция, создающая график
 function createChart2() {
     if (chart2) {
         chart2.destroy(); // Уничтожить существующий график
@@ -40,7 +42,7 @@ function createChart2() {
     });
 }
 
-// Отображение данных на графике
+// Функция, обновляющая график
 function updateChart2(loss) {
     for (let i = 0; i < loss.length; i++) {
         const item = loss[i];
@@ -52,12 +54,12 @@ function updateChart2(loss) {
     chart2.update();
 }
 
+// Функция, обновляющая параметры
 function updateParameters(training_time, mse, r2) {
-    // Обновление значения number-drift-points
+    // Обновление параметров
     const timeValueElement = document.getElementById('time-value');
     if (timeValueElement) {
         timeValueElement.textContent = training_time;
-
         // Сохранить значение в локальное хранилище
         localStorage.setItem('timeValue', training_time);
     }
@@ -66,7 +68,6 @@ function updateParameters(training_time, mse, r2) {
     if (lossValueElement) {
         if (mse != null){
             lossValueElement.textContent = mse;
-
             // Сохранить значение в локальное хранилище
             localStorage.setItem('lossValue', mse);
         }
@@ -76,13 +77,13 @@ function updateParameters(training_time, mse, r2) {
     if (accuracyValueElement) {
         if (r2 != null){
             accuracyValueElement.textContent = r2;
-
             // Сохранить значение в локальное хранилище
             localStorage.setItem('accuracyValue', r2);
         }
     }
 }
 
+// Функция, восстанавливающая параметры
 function restoreParameters() {
     // Получить сохраненное значение параметров из локального хранилища
     const timeValue = localStorage.getItem('timeValue');
@@ -111,7 +112,7 @@ function restoreParameters() {
     }
 }
 
-// Загрузка и отображение исходных данных
+// Функция, выполняющая AJAX-запрос на получение данных и обновляющая график и параметры
 function fetchData2() {
     // Выполнить AJAX запрос на маршрут Flask
     $.ajax({
@@ -125,7 +126,8 @@ function fetchData2() {
             console.log('Производительность модели - training_time: ' + training_time + ' mse: ' + mse + ' r2: ' + r2)
             updateParameters(training_time, mse, r2, loss);
             updateChart2(loss);
-            saveChartState2(); // Сохранить состояние графика после обновления данных
+            // Сохранить состояние графика после обновления данных
+            saveChartState2();
         },
         error: function(error) {
             console.log(error);
@@ -133,6 +135,7 @@ function fetchData2() {
     });
 }
 
+// Функция, инициирующая запуск и остановку получения обновлений для графика и параметров
 function managementWork2() {
     $.get('/check_status', function(data) {
         // Если обучение запущено
@@ -155,6 +158,7 @@ function managementWork2() {
     });
 }
 
+// Функция, восстанавливающая состояние графика
 function restoreChartState2() {
     // Получить сохраненные данные графика из локального хранилища
     const chartData = localStorage.getItem('chartData2');
@@ -168,6 +172,7 @@ function restoreChartState2() {
     }
 }
 
+// Функция, сохраняющая состояние графика
 function saveChartState2() {
     if (chart2) {
         // Сохранить данные графика в локальное хранилище
@@ -176,7 +181,7 @@ function saveChartState2() {
     }
 }
 
-// При загрузке страницы восстанавливаем состояния
+// При загрузке страницы создаем график, восстанавливаем состояние графика и параметров, обновляем данные
 $(document).ready( function () {
     // Создание графика
     createChart2();

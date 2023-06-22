@@ -3,27 +3,26 @@
 """
 
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from meteostat import Point, Hourly, Daily, Monthly 
 from geopy.geocoders import Nominatim
 from app.modules import DataPreprocessing
 
-# Получить координаты точки по адресу
+
 def get_coords_of_address(address):
     """
     Получает координаты точки по адресу.
     :param address: Адрес точки (строка).
     :return: Кортеж с широтой и долготой точки (float).
     """
-    #Указываем используемый geocoder 
+    # Указываем используемый geocoder
     geolocator = Nominatim(user_agent="Tester")
-    #Создаем переменную, которая состоит из данных о точке локации адреса
+    # Создаем переменную, которая состоит из данных о точке локации адреса
     location = geolocator.geocode(address)
-    #Возвращаем широту и долготу в виде кортежа
+    # Возвращаем широту и долготу в виде кортежа
     return location.latitude, location.longitude
 
 
-# Получить данные о погоде в точке за заданный период с заданной частотой
 def get_weather_info(start='2021-01-02 00:00:00', end=None, mode='Hourly', res_period=None,
                      address='улица Перекопская, 15а, Тюмень, Россия', logging=True):
     """

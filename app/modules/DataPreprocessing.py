@@ -1,14 +1,14 @@
-'''
+"""
     Модуль предварительной обработки данных.
     Функционал:
-    1) Удаление столбцов с заданным процентом пропусков
-    2) Удаление коллинеарных признаков
-    3) Удаление строк с пропущенными значениями
-    4) Формирование предобработанного датасета
-    5) Объединение датасетов
-    6) Нормализация значений датасета
-    7) Разделение датасета на обучающую и тестовую выборки
-'''
+        1) Удаление столбцов с заданным процентом пропусков
+        2) Удаление коллинеарных признаков
+        3) Удаление строк с пропущенными значениями
+        4) Формирование предобработанного датасета
+        5) Объединение датасетов
+        6) Нормализация значений датасета
+        7) Разделение датасета на обучающую и тестовую выборки
+"""
 import os
 import numpy as np
 import pandas as pd
@@ -35,7 +35,6 @@ def normalize_dataset(dataset):
     return pd.DataFrame(transformed, columns=dataset.columns, index=dataset.index)
 
 
-
 def denormalize_dataset(normalized_dataset):
     """
     Денормализует значения датасета.
@@ -56,14 +55,15 @@ def denormalize_dataset(normalized_dataset):
     denormalized = scaler.inverse_transform(normalized_dataset)
     return pd.DataFrame(denormalized, columns=normalized_dataset.columns, index=normalized_dataset.index)
 
-def denormalize_temp(normalized_dataset):
+
+def denormalize_temp(normalized_column):
     """
-    Денормализует значения датасета.
-    :param normalized_dataset: Нормализованный датасет.
-    :return: Денормализованный датасет.
+    Денормализует значения столбца датасета.
+    :param normalized_column: Нормализованный столбец.
+    :return: Денормализованный столбец.
     """
     new_dataset = pd.concat(
-        [pd.DataFrame(None, index=normalized_dataset.index, columns=['new_col']), normalized_dataset,
+        [pd.DataFrame(None, index=normalized_column.index, columns=['new_col']), normalized_column,
          pd.DataFrame(columns=[f'extra_{i + 1}' for i in range(7)])], axis=1)
 
     denormalized = denormalize_dataset(new_dataset)
@@ -76,7 +76,6 @@ def del_cols_with_skips(data=None, cols=None, percentage_skips=50):
     :param data: Датафрейм.
     :param cols: Список столбцов для проверки. Если None, будут проверены все столбцы датафрейма (по умолчанию: None).
     :param percentage_skips: Пороговое значение процента пропусков. Если столбец имеет процент пропусков выше порога, он будет удален (по умолчанию: 50).
-    :return: None
     """
     if cols is None:
         cols = data.columns
@@ -96,7 +95,6 @@ def del_collinear_cols(data=None, cols=None, threshold=90):
     :param data: Датафрейм.
     :param cols: Список столбцов для расчета корреляции. Если None, будет использованы все столбцы датафрейма. (по умолчанию: None)
     :param threshold: Пороговое значение корреляции в процентах. Если два признака имеют корреляцию выше порога, один из них будет удален. (по умолчанию: 90)
-    :return: None
     """
     if cols is None:
         correlation = data.corr()
@@ -117,14 +115,12 @@ def del_rows_with_skips(data):
     """
     Удаляет строки с пропущенными значениями.
     :param data: Датафрейм.
-    :return: None
     """
     for col in data.columns:
         data[col].replace('', np.nan, inplace=True)
         data.dropna(subset=[col], inplace=True)
 
 
-# Объединить датафреймы
 def merged_dataframes(sensor_info, weather_info, logging=True):
     """
     Объединяет два датафрейма.
@@ -140,8 +136,13 @@ def merged_dataframes(sensor_info, weather_info, logging=True):
     return merged
 
 
-# Преобразовать строку в дату и время
 def str_to_date_time(date, format="%Y-%m-%d %H:%M:%S"):
+    """
+    Преобразует строку в объект даты и времени.
+    :param date: Исходная строка с датой и временем.
+    :param format: Формат строки даты и времени. (по умолчанию "%Y-%m-%d %H:%M:%S")
+    :return: Объект datetime.
+    """
     if type(date) == str:
         date = datetime.strptime(date, format)
     return date
@@ -163,8 +164,6 @@ def preprocess_dataset(dataframe, cols=None, logging=True):
         del_cols_with_skips(dataframe, cols, 50)
     except Exception as e:
         print(f"Ошибка при удалении столбцов с пропусками: {str(e)}")
-    # Отобразить корреляционную матрицу признаков о погоде
-    # Visualization.plot_correlation_matrix(dataframe)
     if logging:
         print('\tУдаление столбцов с заданным процентом корреляции')
     try:
@@ -180,8 +179,15 @@ def preprocess_dataset(dataframe, cols=None, logging=True):
     return dataframe
 
 
-# Разделение датасета на обучающую и тестовую выборки
 def get_train_test_for_train_from_scratch(dataset, target_column, test_size=0.333, random_state=None):
+    """
+    Разделяет датасет на обучающую и тестовую выборки для обучения модели с нуля.
+    :param dataset: Датасет для разделения.
+    :param target_column: Имя целевого столбца.
+    :param test_size: Процент данных для тестовой выборки. (по умолчанию 0.333 (33.3%)).
+    :param random_state: Флаг случайности при разделении данных. (по умолчанию None).
+    :return: Кортеж, содержащий x_train, y_train, x_test, y_test, train_index, test_index.
+    """
     index_y = list(dataset.columns).index(target_column)
     indexes_x = [i for i in range(len(dataset.columns)) if i != index_y]
     y = dataset[dataset.columns[index_y]]
@@ -198,6 +204,12 @@ def get_train_test_for_train_from_scratch(dataset, target_column, test_size=0.33
 
 
 def get_train_test_for_online_learning(dataset, target_column):
+    """
+    Разделяет датасет на обучающую и тестовую выборки для онлайн обучения модели.
+    :param dataset: Датасет для разделения.
+    :param target_column: Имя целевого столбца.
+    :return: Кортеж, содержащий x_train, y_train, x_test, y_test, train_index, test_index.
+    """
     index_y = list(dataset.columns).index(target_column)
     indexes_x = [i for i in range(len(dataset.columns)) if i != index_y]
     y = dataset[dataset.columns[index_y]]
@@ -212,6 +224,13 @@ def get_train_test_for_online_learning(dataset, target_column):
 
 
 def get_train_test_for_transfer_learning(dataset, target_column, test_size=0.2):
+    """
+    Разделяет датасет на обучающую и тестовую выборки для трансферного обучения модели.
+    :param dataset: Датасет для разделения.
+    :param target_column: Имя целевого столбца.
+    :param test_size: Процент данных для тестовой выборки. (по умолчанию 0.2 (20%)).
+    :return: Кортеж, содержащий x_train, y_train, x_test, y_test, train_index, test_index.
+    """
     index_y = list(dataset.columns).index(target_column)
     indexes_x = [i for i in range(len(dataset.columns)) if i != index_y]
     y = dataset[dataset.columns[index_y]]

@@ -1,8 +1,6 @@
 """
     Модуль получения данных датчиков.
 """
-
-
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -36,7 +34,6 @@ def get_sensor_info_from_url(url):
         return pd.DataFrame()
 
 
-# Получить данные со всех датчиков
 def get_sensor_info(start=None, url='https://sensors.mwlabs.ru/', res_period="10T", fill_in_the_gaps=True, logging=True):
     """
     Получает данные со всех датчиков.
@@ -92,8 +89,8 @@ def get_sensor_info(start=None, url='https://sensors.mwlabs.ru/', res_period="10
     if logging:
         print("\t\tДобавление столбца date_time")
     df['date_time'] = pd.to_datetime(df['date'] + ' ' + df['time'], format="%Y-%m-%d %H:%M:%S")
-    #DateConverter.df_add_datetime(df)
-    if logging: print("\t\tУдаление столбцов date и time")  
+    if logging:
+        print("\t\tУдаление столбцов date и time")
     df = df.drop(["date","time"],axis = 1)
     if start is not None:
         if logging:

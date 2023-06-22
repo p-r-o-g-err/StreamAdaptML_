@@ -1,6 +1,10 @@
+"""
+    Модуль, написанный для выполнения исследовательской части работы.
+"""
 import os
+import keras
 from river import drift
-from MLModelTrainerTest import *
+from MLModelTrainer import *
 import DataHandler
 from app import app
 from app.modules import DataDriftDetector
@@ -23,11 +27,8 @@ def updateData(window_size):
     :return: None
     """
     # Определяем начальное время
-    # start_date = datetime.datetime.strptime("2023-06-06 08:20:00", "%Y-%m-%d %H:%M:%S")
     start_date = datetime.datetime.strptime("2023-04-30 23:50:00", "%Y-%m-%d %H:%M:%S")
-    # end_date = datetime.datetime.strptime("2023-06-01 00:00:00", "%Y-%m-%d %H:%M:%S")
     end_date = datetime.datetime.strptime("2023-05-02 00:00:00", "%Y-%m-%d %H:%M:%S")
-
     # start_date = datetime.datetime.now() - datetime.timedelta(days=10)
     # Считываем датасет
     new_dataset = DataHandler.get_dataset_for_model(start_date=start_date, end_date=end_date,
@@ -37,7 +38,6 @@ def updateData(window_size):
     # Определяем столбец температуры
     temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
     # Переименовываем столбец
-    # new_dataset = new_dataset[['date_time', temp_column_name]]
     new_dataset.rename(columns={temp_column_name: 'temp_audience'}, inplace=True)
 
     if learning_parameters['actual_dataset'].empty:
@@ -69,7 +69,7 @@ def updateData(window_size):
 def run_drift_detection():
     """
     Выполняет обнаружение сдвига в наборе данных.
-    :return: Список индексов, где обнаружен сдвиг.
+    :return: True - если сдвиг обнаружен, иначе False.
     """
     if learning_parameters['actual_dataset'].empty:
         return False
@@ -83,10 +83,6 @@ def run_drift_detection():
             learning_parameters['last_element_for_drift_detector'] = actual_dataset.iloc[-1]
 
         data_stream = actual_dataset['temp_audience']
-
-        #last_record = learning_parameters['actual_dataset'].iloc[-1]
-        #learning_parameters['last_element_for_drift_detector'] = last_record
-        #actual_dataset[actual_dataset['date_time'] > a['date_time']]
 
         if learning_parameters['drift_detector'] is None:
             # Чтение значения data_shift_detection_method из файла settings.json
@@ -125,18 +121,18 @@ def run_drift_detection():
         return is_drift
 
 
-def aaa():
+def comparison_models():
+    """
+    Сравнивает предварительно обученную и дообученную модели.
+    """
     models_files = os.listdir(app.config['MODELS_FOLDER'])
     filename0 = os.path.join(app.config['MODELS_FOLDER'], models_files[0])
     filename1 = os.path.join(app.config['MODELS_FOLDER'], models_files[1])
-    filename2 = os.path.join(app.config['MODELS_FOLDER'], models_files[2])
     loaded_model0 = keras.models.load_model(filename0)
     loaded_model1 = keras.models.load_model(filename1)
-    loaded_model2 = keras.models.load_model(filename2)
     # Инициализация моделей
     obj_model0 = ModelGeneration(model=loaded_model0)
     obj_model1 = ModelGeneration(model=loaded_model1)
-    obj_model2 = ModelGeneration(model=loaded_model2)
 
     # Получение датасета
     datasets = []
@@ -146,13 +142,9 @@ def aaa():
     datasets.append(DataHandler.get_dataset_for_model(audience_name=None,
                                                     normalize=False))
     datasets.append(DataHandler.get_dataset_for_model(start_date=start_date,
-                                                    audience_name=None,
-                                                    normalize=False))
-    datasets.append(DataHandler.get_dataset_for_model(start_date=start_date,
                                                       end_date=end_date,
                                                       audience_name=None,
                                                       normalize=False))
-    counter = 0
     for new_dataset in datasets:
         new_dataset = new_dataset.reset_index()
         # Определяем столбец температуры
@@ -175,19 +167,15 @@ def aaa():
         obj_model1.compute_mse(y_test, predicted_test.flatten())
         obj_model1.compute_r_squared(y_test, predicted_test.flatten())
 
-        predicted_test = obj_model2.current_model.predict(x_test)
-        obj_model2.compute_mse(y_test, predicted_test.flatten())
-        obj_model2.compute_r_squared(y_test, predicted_test.flatten())
-        print('Датасет:', counter)
         print('Модель 0: mse =', obj_model0.mse, ' r2 =', obj_model0.r2)
         print('Модель 1: mse =', obj_model1.mse, ' r2 =', obj_model1.r2)
-        print('Модель 2: mse =', obj_model2.mse, ' r2 =', obj_model2.r2)
-        counter += 1
 
 
 def create_new_model():
+    """
+    Инициализирует и обучает модель на исторических данных, после чего сохраняет модель.
+    """
     # Считывание модели
-    # current_model = DataHandler.read_model() obj_model = ModelGeneration(model=current_model)
     end_date = datetime.datetime.strptime("2023-05-01 00:00:00", "%Y-%m-%d %H:%M:%S")
     new_dataset = DataHandler.get_dataset_for_model(end_date=end_date, audience_name=None, normalize=False)
     # Переименовываем столбец
@@ -203,7 +191,11 @@ def create_new_model():
     obj_model.train_from_scratch(new_dataset)
     obj_model.save_model()
 
-def create_new_model2():
+
+def check_original_model():
+    """
+    Проверяет качество предварительно обученной модели
+    """
     start_date = datetime.datetime.strptime("2023-05-02 23:50:00", "%Y-%m-%d %H:%M:%S")
     end_date = datetime.datetime.strptime("2023-05-04 00:00:00", "%Y-%m-%d %H:%M:%S")
     new_dataset = DataHandler.get_dataset_for_model(start_date=start_date, end_date=end_date, audience_name=None, normalize=False)
@@ -223,7 +215,6 @@ def create_new_model2():
     x_train, y_train, x_test, y_test, index_train, index_test = \
         get_train_test(new_dataset, obj_model.target_column, mode='train_online')
 
-
     # Прогнозирование значений
     predicted_test = obj_model.current_model.predict(x_test)
 
@@ -234,6 +225,9 @@ def create_new_model2():
 
 
 def run_learning():
+    """
+    Имитирует фоновую работу процесса дообучения модели (для отладки).
+    """
     # Считывание настроек обучения
     settings = DataHandler.read_settings()
     # Метод обучения при отсутствии сдвига данных
@@ -260,8 +254,6 @@ def run_learning():
                 # Подготовка актуального датасета для модели
                 actual_dataset = learning_parameters['actual_dataset'].set_index('date_time')
                 dataset = DataPreprocessing.normalize_dataset(actual_dataset)
-
-                # Нужно передавать только новые данные для онлайн и мини-пакетного обучения
 
                 # Если сдвиг обнаружен
                 if is_drift:
@@ -290,35 +282,19 @@ def run_learning():
                     else:
                         print('Передан неверный метод обучения модели при отсутствии сдвига данных')
 
-
-                # predicted_temp = DataPreprocessing.denormalize_temp(obj_model.predicted)
-                # true_temp = DataPreprocessing.denormalize_dataset(dataset)['temp_audience']
-                # # Получаем значения метрик MSE и R2 для окна S
-                # mse = obj_model.mse
-                # r2 = obj_model.r2
-                #
-                # s = 3
-
-            # # Подготовка актуального датасета для модели
-            # actual_dataset = learning_parameters['actual_dataset'].set_index('date_time')
-            # dataset = DataPreprocessing.normalize_dataset(actual_dataset)
-            # #obj_model.set_dataset(dataset)
-            # # start_date
-            # if len(actual_dataset) >= window_size:
-            #     #obj_model.create_model()
-            #     #obj_model.save_model()
-            #     obj_model.train_from_scratch(dataset)
-            #     # Получаем фактические и предсказанные значения для окна S
-            #     #obj_model.predicted
-            #     #dataset
-            #     # Получаем значения метрик MSE и R2 для окна S
-            #     #obj_model.mse
-            #     #obj_model.r2
-
-            # obj_model.save_model()
+                predicted_temp = DataPreprocessing.denormalize_temp(obj_model.predicted)
+                true_temp = DataPreprocessing.denormalize_dataset(dataset)['temp_audience']
+                # Получаем значения метрик MSE и R2 для окна S
+                mse = obj_model.mse
+                r2 = obj_model.r2
 
 
 def train_one_model(training_method, training_method_with_data_shift):
+    """
+    Обучает модель с использованием выбранных методов обучения при наличии и отсутствии сдвига данных.
+    :param training_method: метод обучения при отсутствии сдвига.
+    :param training_method_with_data_shift: метод обучения при наличии сдвига.
+    """
     # Считывание настроек обучения
     settings = DataHandler.read_settings()
     # Размер окна данных для дообучения (S)
@@ -331,7 +307,7 @@ def train_one_model(training_method, training_method_with_data_shift):
     start_time_learn = datetime.datetime.now()
     while True:
         # Актуализация датасета
-        result_update_dataset = updateData(window_size)  # DataHandler.update_dataset(logging=False) + read_dataset
+        result_update_dataset = updateData(window_size)
 
         # Если были получены новые данные
         if result_update_dataset:
@@ -343,7 +319,6 @@ def train_one_model(training_method, training_method_with_data_shift):
                 # Подготовка актуального датасета для модели
                 actual_dataset = learning_parameters['actual_dataset'].set_index('date_time')
                 dataset = DataPreprocessing.normalize_dataset(actual_dataset)
-
 
                 # Если сдвиг обнаружен
                 if is_drift:
@@ -375,8 +350,6 @@ def train_one_model(training_method, training_method_with_data_shift):
             end_time_learn = datetime.datetime.now() - start_time_learn
             start_date = datetime.datetime.strptime("2023-05-02 23:50:00", "%Y-%m-%d %H:%M:%S")
             end_date = datetime.datetime.strptime("2023-05-04 00:00:00", "%Y-%m-%d %H:%M:%S")
-            #start_date = datetime.datetime.strptime("2023-05-31 23:50:00", "%Y-%m-%d %H:%M:%S")
-            #end_date = datetime.datetime.strptime("2023-06-14 00:00:00", "%Y-%m-%d %H:%M:%S")
             new_dataset = DataHandler.get_dataset_for_model(start_date=start_date,
                                                             end_date=end_date, audience_name=None,
                                                             normalize=False)
@@ -393,24 +366,12 @@ def train_one_model(training_method, training_method_with_data_shift):
 
             # Прогнозирование значений
             predicted_test = obj_model.current_model.predict(x_test)
-
-
-
-
-            print()
-            print('---------------РЕЗУЛЬТАТЫ-------------------')
-            print(f'Метод при наличии сдвига: {training_method}')
-            print(f'Метод при отсутствии сдвига: {training_method_with_data_shift}')
             # Вычисление точности (MSE, R2)
             obj_model.compute_mse(y_test, predicted_test.flatten())
             obj_model.compute_r_squared(y_test, predicted_test.flatten())
-            print('Время обучения : {}'.format(end_time_learn))
-            print('--------------------------------------------')
-            print()
 
             result_str = f'Метод при наличии сдвига: {training_method} | ' \
-                         f'Метод при отсутствии сдвига: {training_method_with_data_shift} ' \
-
+                         f'Метод при отсутствии сдвига: {training_method_with_data_shift} '
             result_mse = 'MSE: %.3f' % obj_model.mse
             result_r2 = 'R2: %.3f' % obj_model.r2
             result_str = result_str + ' | ' + result_mse + ' | ' + result_r2
@@ -418,11 +379,13 @@ def train_one_model(training_method, training_method_with_data_shift):
             filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results.txt')
             with open(filename, "a", encoding='utf-8') as file:
                 file.write(result_str + "\n")
-
             break
 
 
 def reset_parameters():
+    """
+    Сбрасывает параметры обучения, чтобы при использовании следующего метода обучения модель обучалась на тех же данных.
+    """
     global learning_parameters
     learning_parameters = {
         'start_learn': None,  # Флаг запуска обучения
@@ -431,23 +394,23 @@ def reset_parameters():
         # Время последнего считывания данных графиком потоковых данных
         'drift_indexes': [],  # Обнаруженные точки сдвига данных
         'drift_detector': None,  # Детектор сдвига данных
-        'last_element_for_drift_detector': None,
-        # Последний элемент, считанный при работе метода обнаружения сдвига данных
+        'last_element_for_drift_detector': None, # Последний элемент, считанный при работе метода обнаружения сдвига данных
         'last_reading_time_for_learning_model': None,  # Время последнего считывания данных для обучения модели
     }
 
+
 if __name__ == "__main__":
-    # aaa()
-    #create_new_model()
-    #train_one_model()
+    # Создание и обучение модели на исторических данных
+    create_new_model()
+    # Запуск дообучения модели с использованием разных методов и с сохранением результатов в файл
     training_methods = ['online_learning', 'mini_batch_online_learning', 'transfer_learning']
     training_methods_with_data_shift = ['online_learning', 'mini_batch_online_learning', 'transfer_learning',
                                        'learning_from_scratch', 'autofit']
-    create_new_model2()
-    #train_one_model(training_method='transfer_learning', training_method_with_data_shift='learning_from_scratch')
-    #reset_parameters()
-    #train_one_model(training_method='transfer_learning', training_method_with_data_shift='autofit')
-    #reset_parameters()
-    #train_one_model(training_method='online_learning', training_method_with_data_shift='transfer_learning')
-    # DataHandler.update_dataset()
-
+    for m1 in training_methods:
+        for m2 in training_methods_with_data_shift:
+            train_one_model(training_method=m1, training_method_with_data_shift=m2)
+            reset_parameters()
+    # Запуск проверки качества исходной модели
+    check_original_model()
+    # Сравнение предобученной и дообученой моделей
+    comparison_models()

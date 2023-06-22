@@ -1,5 +1,7 @@
-var ctx1 = null;
-var chart1 = null;
+var ctx1 = null; // Переменная, содержащая контекст для рисования графика
+var chart1 = null; // Переменная, содержащая объект графика
+
+// Функция, создающая график
 function createChart() {
     if (chart1) {
         chart1.destroy(); // Уничтожить существующий график
@@ -49,7 +51,7 @@ function createChart() {
     });
 }
 
-// Отображение данных на графике
+// Функция, обновляющая график и параметры
 function updateChart(data, driftIndexes) {
     for (let i = 0; i < data.length; i++) {
         const item = data[i];
@@ -60,7 +62,6 @@ function updateChart(data, driftIndexes) {
             chart1.data.datasets[1].data.push({x: item.date_time, y: item.temp_audience});
         }
         console.log('Потоковые данные - date_time: ' +  item.date_time + ' temp: ' + item.temp_audience + ' is_drift: ' + driftIndexes.includes(item.index));
-
         console.log('Потоковые данные - точки сдвига: ' + driftIndexes + ' всего: ' + driftIndexes.length.toString());
     }
     // Обновление графика
@@ -70,14 +71,12 @@ function updateChart(data, driftIndexes) {
     const numberDriftPointsElement = document.getElementById('number-drift-points');
     if (numberDriftPointsElement) {
         numberDriftPointsElement.textContent = driftIndexes.length.toString();
-
         // Сохранить значение driftIndexes.length в локальное хранилище
         localStorage.setItem('driftPointsCount', driftIndexes.length.toString());
     }
-
 }
 
-// Загрузка и отображение исходных данных
+// Функция, выполняющая AJAX-запрос на получение данных и обновляющая график и параметры
 function fetchData() {
     // Выполнить AJAX запрос на маршрут Flask
     $.ajax({
@@ -87,7 +86,8 @@ function fetchData() {
             var data = response.data;
             var driftIndexes = response.driftIndexes;
             updateChart(data, driftIndexes);
-            saveChartState(); // Сохранить состояние графика после обновления данных
+            // Сохранить состояние графика после обновления данных
+            saveChartState();
         },
         error: function(error) {
             console.log(error);
@@ -95,6 +95,7 @@ function fetchData() {
     });
 }
 
+// Функция, инициирующая запуск и остановку получения обновлений для графика и параметров
 function managementWork() {
     $.get('/check_status', function(data) {
         // Если обучение запущено
@@ -119,6 +120,7 @@ function managementWork() {
     });
 }
 
+// Функция, восстанавливающая состояние графика
 function restoreChartState() {
     // Получить сохраненные данные графика из локального хранилища
     const chartData = localStorage.getItem('chartData');
@@ -132,6 +134,7 @@ function restoreChartState() {
     }
 }
 
+// Функция, сохраняющая состояние графика
 function saveChartState() {
     if (chart1) {
         // Сохранить данные графика в локальное хранилище
@@ -140,6 +143,7 @@ function saveChartState() {
     }
 }
 
+// Функция, восстанавливающая количество точек сдвига
 function restoreDriftPointsCount() {
     // Получить сохраненное значение driftPointsCount из локального хранилища
     const driftPointsCount = localStorage.getItem('driftPointsCount');
@@ -170,7 +174,7 @@ window.onbeforeunload = function() {
     });
 }
 
-// При загрузке страницы восстанавливаем состояния
+// При загрузке страницы создаем график, восстанавливаем состояние графика и параметров, обновляем данные
 $(document).ready( function () {
     // Создание графика
     createChart();

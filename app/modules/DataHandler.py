@@ -10,12 +10,12 @@ import pandas as pd
 import json
 import os
 from app import app
-from app.modules import SensorData, MeteostatData, DataPreprocessing, DataDriftDetector
+from app.modules import SensorData, MeteostatData, DataPreprocessing
 import numpy as np
 from datetime import timedelta
-import pickle
-
-from river import drift
+from werkzeug.datastructures import FileStorage
+from flask import send_file, redirect, url_for
+from keras.models import Model
 
 
 # region Работа с датасетом
@@ -85,7 +85,7 @@ def update_dataset(logging=True):
                                                      logging=logging)
             # Сохранить датасет
             save_dataset(dataset)
-            return True  # 210 316 412 420 СФ
+            return True
         except Exception as e:
             print(f"Ошибка при обновлении датасета: {str(e)}")
             return False
@@ -134,7 +134,7 @@ def get_dataset_for_model(audience_name=None, start_date=None, end_date=None, no
 # region Вспомогательные функции
 def verifyExt(filename, exts):
     """
-    Проверить расширение файла на то, что оно допустимо.
+    Проверяет расширение файла на то, что оно допустимо.
     :param filename: название файла.
     :param exts: список расширений.
     :return: True, если расширение допустимо, иначе False.
@@ -173,6 +173,13 @@ def get_merged_sensor_weather_data(start, res_period="1H", preprocessing_weather
 
 
 def get_merged_sensor_weather_data_update(dataset, fill_in_the_gaps=True, logging=True):
+    """
+    Получает обновленный предобработанный датасет.
+    :param dataset: Исходный датасет.
+    :param fill_in_the_gaps: Флаг для заполнения пропущенных значений (по умолчанию True).
+    :param logging: Флаг для логирования процесса (по умолчанию True).
+    :return: Обновленный датасет.
+    """
     if logging:
         print("Обновление датасета")
     if dataset.index.dtype != np.dtype('datetime64[ns]'):
@@ -213,18 +220,15 @@ def get_merged_sensor_weather_data_update(dataset, fill_in_the_gaps=True, loggin
     concat_dataset = pd.concat([dataset, new_dataset], axis=0)
     number_new_rows = len(concat_dataset) - len(dataset)
     return concat_dataset, number_new_rows
-
-
 # endregion
 
 # endregion
-
 
 # region Работа с настройками
 def read_settings():
     """
-    Прочитать настройки обучения из файла settings.json
-    :return: настройки в виде словаря или None, если возникла ошибка
+    Считывает настройки обучения из файла settings.json.
+    :return: настройки в виде словаря или None, если возникла ошибка.
     """
     # Проверяем, существует ли файл настроек
     if not os.path.exists(app.config['SETTINGS_FULLNAME']):
@@ -252,10 +256,11 @@ def update_settings(data_shift_detection_method=None,
                     training_method_with_data_shift=None,
                     window_size=None):
     """
-    Обновить настройки в файле settings.json
-    :param data_shift_detection_method: метод обнаружения сдвига данных
-    :param training_method: метод обучения МО при отсутствии сдвига данных
-    :param training_method_with_data_shift: метод обучения МО при наличии сдвига данных
+    Обновляет настройки в файле settings.json.
+    :param data_shift_detection_method: метод обнаружения сдвига данных.
+    :param training_method: метод обучения ММО при отсутствии сдвига данных.
+    :param training_method_with_data_shift: метод обучения ММО при наличии сдвига данных.
+    :param window_size: размер окна потока данных.
     :return:
     """
     settings = read_settings()
@@ -276,16 +281,11 @@ def update_settings(data_shift_detection_method=None,
 # endregion
 
 # region Работа с моделью
-from werkzeug.datastructures import FileStorage
-from flask import send_file, redirect, url_for, jsonify
-
-
 def save_model(file: FileStorage):
-    '''
-    Загрузка модели на сервер
-    :param file: файл, выбранный пользователем для загрузки
-    :return:
-    '''
+    """
+    Загрузка модели на сервер.
+    :param file: файл, выбранный пользователем для загрузки.
+    """
     # Если файл выбран
     if file:
         # Если формат файла '.keras', то он сохраняется на сервере в указанной директории
@@ -304,10 +304,11 @@ def save_model(file: FileStorage):
             print('Разрешена только загрузка файлов формата ".keras"!')
 
 
-from keras.models import Model
-
-
 def save_model(model: Model):
+    """
+    Сохранение обученной модели на сервере.
+    :param model: Обученная модель.
+    """
     models_files = os.listdir(app.config['MODELS_FOLDER'])
     # Если в папке с моделью есть модель
     if len(models_files) > 0:
@@ -321,10 +322,10 @@ def save_model(model: Model):
 
 
 def upload_model():
-    '''
-    Отправка модели пользователю
-    :return: ответ пользователю на запрос получения модели
-    '''
+    """
+    Отправка модели пользователю.
+    :return: ответ пользователю на запрос получения модели.
+    """
     models_files = os.listdir(app.config['MODELS_FOLDER'])
     # Если в папке с моделью есть модель
     if len(models_files) > 0:
@@ -339,10 +340,10 @@ def upload_model():
 
 
 def read_model():
-    '''
-    Считывание модели
-    :return: модель в формате ...
-    '''
+    """
+    Считывание модели.
+    :return: модель в формате ".keras".
+    """
     # Формируем полное имя модели
     models_files = os.listdir(app.config['MODELS_FOLDER'])
     # Если в папке с моделью есть модель
@@ -353,159 +354,4 @@ def read_model():
         return loaded_model
     else:
         print(f"Ошибка считывания модели. Модель не загружена на сервер.")
-
-
 # endregion
-
-
-# ОТЛАДКА
-
-import datetime
-
-learning_parameters = {
-    'start_learn': None,
-    'actual_dataset': pd.DataFrame(),
-    'time_last_processing': None
-}
-
-
-def debug_update():
-    # global counter
-
-    start_date = datetime.datetime(2023, 5, 25, 16, 0, 0,
-                                   0)  # datetime.datetime(2023, 5, 18, 18, 25, 42, 0) #datetime.datetime.now() - datetime.timedelta(days=10)
-    new_dataset = get_dataset_for_model(start_date=start_date,
-                                        audience_name=None,
-                                        normalize=False)
-    new_dataset = new_dataset.reset_index()
-    temp_column_name = new_dataset.filter(like='wall_temp').columns.item()
-    new_dataset = new_dataset[['date_time', temp_column_name]]
-    new_dataset.rename(columns={temp_column_name: 'temp'}, inplace=True)
-
-    if learning_parameters['actual_dataset'].empty:
-        actual_dataset = new_dataset.head(1)  # learning_parameters['actual_dataset']
-    else:
-        # Получаем последнюю запись из глобального датасета
-        last_record = learning_parameters['actual_dataset'].iloc[-1]
-
-        # Ищем индекс записи в новом датасете, следующей после последней записи в глобальном датасете
-        new_records = new_dataset[new_dataset['date_time'] > last_record['date_time']]
-        if new_records.empty:
-            return
-
-        next_index = new_records.index[0]
-
-        # Выбираем запись с найденным индексом в новом датасете
-        next_record = new_dataset.loc[next_index]
-        # Добавляем запись в глобальный датасет
-        # actual_dataset = learning_parameters['actual_dataset'].append(next_record, ignore_index=True)
-        actual_dataset = pd.concat([learning_parameters['actual_dataset'], next_record.to_frame().transpose()],
-                                   ignore_index=True)
-        s = 3
-    # if learning_parameters['actual_dataset'].shape[0] != 0:
-    #     old_dataset = learning_parameters['actual_dataset']
-    #
-    #     # Получаем последнюю запись из глобального датасета
-    #     last_record = old_dataset.iloc[-1]
-    #
-    #     # Ищем индекс записи в новом датасете, следующей после последней записи в глобальном датасете
-    #     next_element = new_dataset[new_dataset['date_time'] > last_record['date_time']] #.index[0]
-    #
-    #     merged_dataset = pd.concat([old_dataset, next_element])
-    #
-    #
-    #     # Объединение старого и нового датасетов
-    #     # combined_dataset = pd.concat([old_dataset, new_dataset])
-    #     #
-    #     # # Удаление дубликатов и сохранение только новых записей
-    #     # new_records_dataset = combined_dataset.drop_duplicates(keep=False)
-    #     #
-    #     # if len(new_records_dataset) > 0:
-    #     #     # Добавление одной новой записи к старому датасету
-    #     #     actual_dataset = pd.concat([old_dataset, new_records_dataset.head(1)])
-    #     # else:
-    #     #     print()
-    #     #     # Присвоение первой записи из new_dataset
-    #     #     # actual_dataset = new_dataset.head(1)
-    # else:
-    #     # Присвоение первой записи из new_dataset
-    #     actual_dataset = new_dataset.head(1)
-    # print(actual_dataset)
-    learning_parameters['actual_dataset'] = actual_dataset
-    print("Актуальный датасет: ", actual_dataset)
-
-
-results = []
-
-drift_results = []
-
-
-def debug_drift_detection():
-    # Детекция дрейфа
-    data_stream = learning_parameters['actual_dataset']['temp']
-    adwin = drift.binary.DDM()  # drift.ADWIN()
-    drift_index_adwin_a = DataDriftDetector.stream_drift_detector(data_stream, adwin)
-    drift_results.append(drift_index_adwin_a)
-    if len(drift_index_adwin_a) > 0:
-        print()
-
-    # Визуализация работы метода
-    # drift_values_adwin_a = data_stream[drift_index_adwin_a]
-    # test.final_chart_dots(data_stream, drift_index_adwin_a, drift_values_adwin_a, abrupt_drift=True)
-
-
-if __name__ == "__main__":
-    # Обновление данных
-    # update_dataset()
-    # dataset_for_model = read_dataset()
-    # Получение нормализованного датасета для модели
-    start_date = datetime.datetime.now() - timedelta(days=10)
-    dataset_for_model = get_dataset_for_model(start_date=start_date, audience_name=None, normalize=True)
-    # Денормализация датасета
-    denormalize_dataset = DataPreprocessing.denormalize_dataset(normalized_dataset=dataset_for_model)
-    s = 3
-
-    # print('Получение данных')
-    # result_dataset = denormalize_dataset.copy()
-    # result_dataset = result_dataset.reset_index()
-    # temp_column_name = result_dataset.filter(like='wall_temp').columns.item()
-    # result_dataset = result_dataset[['date_time', temp_column_name]]
-    # # result_dataset.rename(columns={temp_column_name: 'temp'}, inplace=True)
-    #
-    # print(result_dataset)
-    # # Преобразование данных в формат, пригодный для передачи через AJAX
-    # json_data = result_dataset.to_dict(orient='records')
-    #
-    # result = jsonify(json_data)
-    counter = 0
-    # Обновление данных
-    for i in range(0, 1000):
-        debug_update()
-        # Запускаем обнаружение сдвига данных, если в датасете более 1 записи
-        if learning_parameters['actual_dataset'].shape[0] > 1:
-            debug_drift_detection()
-        actual_dataset = learning_parameters['actual_dataset']
-        # print(actual_dataset)
-
-        # Если данные уже были ранее получены, то берем только новые данные
-        if learning_parameters['time_last_processing'] is not None:
-            actual_dataset = actual_dataset[actual_dataset['date_time'] > learning_parameters['time_last_processing']]
-        if actual_dataset.empty:
-            break
-
-        print(actual_dataset['date_time'].iloc[-1])
-        # Обновляем время последнего считывания
-        # print(f'actual_dataset = {actual_dataset}')
-        # print(f"date_time = {actual_dataset['date_time']}")
-        # print(type(actual_dataset['date_time']))
-        # print(type(actual_dataset))
-        learning_parameters['time_last_processing'] = actual_dataset['date_time'].iloc[-1]
-        # rows = learning_parameters['actual_dataset'].iloc[0:counter + 1]
-
-        # Преобразование данных в формат, пригодный для передачи через AJAX
-        json_data = actual_dataset.reset_index().to_dict(orient='records')
-        results.append(json_data)
-
-        counter += 1
-        print(counter)
-    s = 2

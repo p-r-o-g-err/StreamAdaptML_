@@ -4,17 +4,21 @@
 import math
 import pandas as pd
 from app import app
-from flask import render_template, request, send_file, redirect, url_for, jsonify
+from flask import render_template, request, redirect, url_for, jsonify
 from app.modules import DataHandler, DataDriftDetector, DataPreprocessing
 from river import drift
 import os
 import threading
 from threading import Thread
 import datetime
-from app.modules.MLModelTrainerTest import ModelGeneration
+from app.modules.MLModelTrainer import ModelGeneration
 
 
+# region Страница настроек
 def init_config():
+    """
+    Считывает название загруженной модели машинного обучения
+    """
     # Проверка наличия загруженной модели
     models_files = os.listdir(app.config['MODELS_FOLDER'])
     # Если в папке с моделью есть модель
@@ -25,11 +29,10 @@ def init_config():
         app.config['LOADED_MODEL'] = filename
 
 
-# region Страница настроек
 @app.route('/')
 def index():
     """
-        Обработчик маршрута главной страницы (страницы настроек)
+    Обработчик маршрута главной страницы (страницы настроек)
     """
     # Инициализация конфигураций приложения
     init_config()
@@ -59,9 +62,9 @@ def index():
 
 @app.route('/download_model', methods=['POST'])
 def download_model():
-    '''
+    """
     Загрузка модели на сервер
-    '''
+    """
     file = request.files['file']
     DataHandler.save_model(file)
     return redirect(url_for('index'))
@@ -90,7 +93,6 @@ def delete_model():
 def save_settings():
     """
     Сохранение настроек обучения
-    :return:
     """
     # Получить настройки
     data_shift_detection_method = request.form.get(key='data-shift-detection-select')
@@ -100,13 +102,11 @@ def save_settings():
     # Обновить настройки
     DataHandler.update_settings(data_shift_detection_method, training_method, training_method_with_data_shift, window_size)
     return redirect(url_for('index'))
-
-
 # endregion
 
 
 # region Страница обучения
-
+# Параметры обучения
 learning_parameters = {
     'first_run_status': True,  # Флаг запуска приложения (для очистки локального хранилища)
     'start_learn': None,  # Флаг запуска обучения
@@ -117,29 +117,27 @@ learning_parameters = {
     'last_element_for_drift_detector': None,  # Последний элемент, считанный при работе метода обнаружения сдвига данных
     'last_reading_time_for_learning_model': None,  # Время последнего считывания данных для обучения модели
     'time_elapsed': datetime.timedelta(seconds=0),  # Счетчик времени обучения
-
-    'predicted_temp': None,
-    'true_temp': None,
-    'mse': None,
-    'r2': None,
-    'last_reading_time_for_predictions_data_chart': None,
-    'last_reading_time_for_training_data_chart': None
+    'predicted_temp': None,  # Предсказанные моделью значения температуры
+    'true_temp': None,  # Фактические значения температуры
+    'mse': None,  # Текущее значение метрики MSE
+    'r2': None,  # Текущее значение метрики R2
+    'last_reading_time_for_predictions_data_chart': None,  # Время последнего считывания данных графиком предсказаний
+    'last_reading_time_for_training_data_chart': None  # Время последнего считывания данных графиком обучения
 }
+
+# Объект потока (Thread), который выполняет фоновую работу. Используется для запуска и остановки работы фонового потока.
+background_thread = None
+# Объект события (Event), который используется для указания фоновому потоку, когда он должен остановиться.
+stop_event = None
 
 
 @app.route('/learning')
 def learning():
     """
-        Обработчик маршрута страницы обучения
+    Обработчик маршрута страницы обучения
     """
     # Инициализация конфигурации приложения
     init_config()
-    # Получить данные для графика
-    # actual_dataset = learning_parameters['actual_dataset']
-    #if not actual_dataset.empty:
-    #    print('Данные для графика\n', actual_dataset[['date_time', 'temp_audience']])
-    #else:
-    #    print('Данные для графика\n', actual_dataset)
     number_drift_points = len(learning_parameters['drift_indexes'])
     return render_template('learning.html', title='Обучение', number_drift_points=number_drift_points)
 
@@ -147,8 +145,8 @@ def learning():
 @app.route('/start_learning', methods=['POST'])
 def start_learning():
     """
-        Запускает обучение
-        :return: результат запуска в виде строки
+    Запускает обучение
+    :return: результат запуска в виде строки
     """
     global background_thread, stop_event
     if background_thread and background_thread.is_alive():
@@ -165,14 +163,13 @@ def start_learning():
     else:
         learning_parameters['start_learn'] = datetime.datetime.now() - learning_parameters['time_elapsed'] # learning_parameters['start_learn']
     return 'Фоновая работа запущена'
-    # return redirect(url_for('learning'))
 
 
 @app.route('/stop_learning', methods=['POST'])
 def stop_learning():
     """
-        Останавливает обучение, если оно запущено
-        :return: результат остановки в виде строки
+    Останавливает обучение, если оно запущено
+    :return: результат остановки в виде строки
     """
     global background_thread, stop_event
     if background_thread and background_thread.is_alive():
@@ -184,15 +181,14 @@ def stop_learning():
     else:
         print('Нет запущенной фоновой работы')
         return 'Нет запущенной фоновой работы'
-    # return redirect(url_for('learning'))
 
 
 @app.route('/check_status', methods=['GET'])
 def check_status():
     """
-        Вспомогательная функция для javascript
-        Проверяет, запущено ли обучение
-        :return: результат проверки в виде текста
+    Функция для ответа на AJAX-запрос.
+    Проверяет, запущено ли обучение.
+    :return: результат проверки в виде текста
     """
     if app.config['IS_LEARNING_STARTED']:
         return 'Фоновая работа запущена'
@@ -203,21 +199,18 @@ def check_status():
 @app.route('/check_model', methods=['GET'])
 def check_model():
     """
-        Вспомогательная функция для javascript
-        Проверяет, загружена ли модель
-        :return: результат проверки в виде текста
+    Функция для ответа на AJAX-запрос.
+    Проверяет, загружена ли модель.
+    :return: результат проверки в виде текста
     """
-    return 'Модель загружена' if app.config['LOADED_MODEL'] != None else 'Модель не загружена'
-
-
-new_data = {}
-
-
-background_thread = None
-stop_event = None
+    return 'Модель загружена' if app.config['LOADED_MODEL'] is not None else 'Модель не загружена'
 
 
 def background_work():
+    """
+    Актуализирует датасет, обучает модель на новых данных и вычисляет метрики качества предсказания.
+    Работает в цикле до получения запроса на остановку.
+    """
     global stop_event
     # Считывание настроек обучения
     settings = DataHandler.read_settings()
@@ -237,7 +230,7 @@ def background_work():
     # Выполнять фоновые задачи, пока не будет получен запрос на остановку
     while not stop_event.is_set():
         # Актуализация датасета
-        result_update_dataset = updateData(window_size)  # DataHandler.update_dataset(logging=False) + read_dataset
+        result_update_dataset = updateData(window_size)
         # Если были получены новые данные
         if result_update_dataset:
             # Если достигнуто необходимое количество элементов в окне
@@ -287,14 +280,13 @@ def background_work():
                 learning_parameters['true_temp'] = true_temp
                 learning_parameters['mse'] = mse
                 learning_parameters['r2'] = r2
-        # time.sleep(3)
 
 
 def updateData(window_size):
     """
     Обновляет набор данных для отладки.
     Извлекает новый набор данных на основе указанной даты начала и добавляет к текущему набору данных 1 запись.
-    :return: None
+    :return: True - если данные обновлены, иначе False
     """
     # Определяем начальное время
     start_date = datetime.datetime.now() - datetime.timedelta(days=10)
@@ -336,7 +328,7 @@ def updateData(window_size):
 def run_drift_detection():
     """
     Выполняет обнаружение сдвига в наборе данных.
-    :return: Список индексов, где обнаружен сдвиг.
+    :return: True - если сдвиг обнаружен, иначе False.
     """
     if learning_parameters['actual_dataset'].empty:
         return False
@@ -390,6 +382,11 @@ def run_drift_detection():
 
 @app.route('/first_run')
 def get_first_run_status():
+    """
+    Функция для ответа на AJAX-запрос.
+    Возвращает значение, указывающее на статус первого запуска приложения.
+    :return: JSON-объект с полем "first_run_status" и соответствующим значением.
+    """
     result = learning_parameters['first_run_status']
     learning_parameters['first_run_status'] = False
     return jsonify(first_run_status=result)
@@ -398,12 +395,12 @@ def get_first_run_status():
 @app.route('/training_data')
 def get_training_data():
     """
-    Отправка информации об обучении:
-        + время обучения
-        + значение функции потерь
-        + точность
-        - изменение точности за время обучения
-    :return:
+    Отправка следующей информации об обучении:
+    1) время обучения
+    2) значение функции потерь
+    3) точность модели
+    4) данные графика
+    :return: JSON-объект с информацией об обучении.
     """
     start_learn = learning_parameters['start_learn']
     if start_learn is not None:
@@ -448,7 +445,6 @@ def get_training_data():
                         learning_parameters['last_reading_time_for_training_data_chart'] = learning_parameters['last_reading_time_for_predictions_data_chart']
                         date_time = learning_parameters['last_reading_time_for_training_data_chart']
                         loss = pd.DataFrame({'date_time': [date_time], 'loss': [mse]}).reset_index().to_dict(orient='records')
-        # print('loss:', loss)
         # Отправляем данные и индексы сдвига на клиентскую сторону
         result = jsonify(training_time=training_time, mse=mse, r2=r2, loss=loss)
         return result
@@ -456,10 +452,12 @@ def get_training_data():
 
 @app.route('/predictions_data')
 def get_predictions_data():
+    """
+    Отправка фактических и спрогнозированных моделью значений температуры.
+    :return: JSON-объект с данными для графика.
+    """
     true_temp = learning_parameters['true_temp']
     predicted_temp = learning_parameters['predicted_temp']
-    # print('true_temp:', true_temp)
-    # print('predicted_temp:', predicted_temp)
     if predicted_temp is None or true_temp is None:
         return jsonify(true_temp=[], predicted_temp=[])
 
@@ -491,9 +489,9 @@ def get_predictions_data():
 def get_streaming_data():
     """
     Отправка информации о потоковых данных:
-        + данные графика
-        + количество точек сдвига
-    :return:
+    1) данные графика
+    2) количество точек сдвига
+    :return: JSON-объект с данными о потоковых данных.
     """
 
     drift_indexes = learning_parameters['drift_indexes']
@@ -520,7 +518,6 @@ def get_streaming_data():
     # Преобразование данных в формат, пригодный для передачи через AJAX
     json_data = actual_dataset.reset_index().to_dict(orient='records')
     print(f'Данные для отрисовки: {json_data}')
-    # print('last_reading_time_for_streaming_data_chart:', learning_parameters['last_reading_time_for_streaming_data_chart'])
 
     # Преобразование данных перед отправкой на клиентскую сторону
     for item in json_data:
